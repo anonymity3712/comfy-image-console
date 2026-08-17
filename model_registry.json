@@ -2,8 +2,8 @@
   "models": [
     {
       "id": "z_image_turbo",
-      "name": "Z-Image Turbo (BF16)",
-      "unet": "z_image_turbo_bf16.safetensors",
+      "name": "Z-Image Turbo NSFW 7.2 (BF16)",
+      "unet": "zImageTurboNSFW_72bf16.safetensors",
       "clip_name1": "qwen_3_4b_fp8_mixed.safetensors",
       "clip_name2": null,
       "clip_type": "lumina2",
@@ -11,9 +11,9 @@
       "weight_dtype": "default",
       "workflow": "workflow_zimage.json",
       "default_settings": {
-        "steps": 8,
+        "steps": 12,
         "cfg": 1.0,
-        "sampler": "res_multistep",
+        "sampler": "dpmpp_sde",
         "scheduler": "simple"
       },
       "default_loras": [],
