@@ -1067,6 +1067,19 @@ def _write_generation_metadata(dest, body, model_id, model_cfg):
         print(f"warn: PNG metadata write failed: {e}")
 
 
+def _submit_workflow(client, workflow):
+    """Submit a workflow, retrying once if ComfyUI restarts between checks."""
+    try:
+        return client.submit(workflow)
+    except Exception as e:
+        if "comfyui_unreachable" not in str(e):
+            raise
+        ready = _start_local_comfyui(client)
+        if not ready.get("ok"):
+            raise RuntimeError(ready.get("error", str(e)))
+        return client.submit(workflow)
+
+
 def _execute_generation(body, client, update, cancel_event):
     started = time.time()
     update(status="running", message="检查 ComfyUI…", progress=0)
@@ -1075,7 +1088,7 @@ def _execute_generation(body, client, update, cancel_event):
         raise JobCancelled("cancelled before submit")
     update(message="提交工作流…", progress=5)
     try:
-        resp = client.submit(wf)
+        resp = _submit_workflow(client, wf)
     except Exception as e:
         raise RuntimeError(str(e))
     prompt_id = resp.get("prompt_id")
