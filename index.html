@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>ComfyUI Web Frontend</title>
+<style>
+:root {
+  --bg: #0f1115;
+  --bg-2: #161a22;
+  --bg-3: #1d222c;
+  --border: #2a3140;
+  --fg: #e6e8eb;
+  --fg-dim: #8b94a7;
+  --accent: #6aa9ff;
+  --accent-2: #8a5cf6;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --err: #f87171;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #506a91 #121720;
+}
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-track {
+  background: #121720;
+  border-left: 1px solid rgba(255,255,255,.035);
+}
+*::-webkit-scrollbar-thumb {
+  min-height: 30px;
+  background: linear-gradient(180deg, #5d78a2, #3e5376);
+  border: 2px solid #121720;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #7fa6de, #526f9f);
+}
+*::-webkit-scrollbar-corner { background: #121720; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+  display: flex; flex-direction: column; height: 100vh;
+  overflow: hidden;
+}
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px; background: var(--bg-2); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.title { min-width: 0; font-weight: 600; font-size: 14px; }
+.title .sub { color: var(--fg-dim); font-weight: 400; margin-left: 8px; font-size: 12px; }
+.status { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; color: var(--fg-dim); }
+.status #statusText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--err); }
+.dot.ok { background: var(--ok); }
+.dot.warn { background: var(--warn); }
+main { flex: 1; display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); min-height: 0; min-width: 0; }
+aside.left {
+  background: var(--bg-2); border-right: 1px solid var(--border);
+  overflow-y: auto; padding: 12px; min-width: 0;
+}
+section.right { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); }
+.preview-pane { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 16px; overflow: auto; background: #000; }
+.preview-pane img { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 0 0 1px var(--border); }
+.preview-pane .empty { color: var(--fg-dim); text-align: center; font-size: 13px; }
+.preview-pane .meta { position: absolute; bottom: 12px; left: 12px; z-index: 2; max-width: calc(100% - 24px); background: rgba(0,0,0,.6); padding: 4px 8px; font-size: 11px; color: var(--fg-dim); border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+.preview-pane .preview-actions { position: absolute; top: 12px; right: 12px; z-index: 3; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100% - 24px); }
+.image-modal { position: fixed; inset: 0; z-index: 300; display: flex; align-items: center; justify-content: center; padding: 28px; background: rgba(0,0,0,.92); cursor: zoom-out; }
+.image-modal[hidden] { display: none; }
+.image-modal img { max-width: 95vw; max-height: 90vh; object-fit: contain; box-shadow: 0 0 0 1px var(--border), 0 12px 40px rgba(0,0,0,.65); cursor: default; }
+.image-modal .caption { position: fixed; left: 20px; right: 20px; bottom: 12px; text-align: center; color: var(--fg-dim); font-size: 11px; pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.image-modal .close { position: fixed; top: 14px; right: 16px; width: 34px; height: 34px; padding: 0; border-color: var(--fg-dim); background: rgba(0,0,0,.65); color: var(--fg); font-size: 24px; line-height: 28px; }
+.image-modal .close:hover { border-color: var(--accent); color: var(--accent); }
+.gallery-pane { height: 240px; background: var(--bg-2); border-top: 1px solid var(--border); overflow-y: auto; overflow-x: hidden; padding: 8px; flex-shrink: 0; }
+.gallery-pane .label { font-size: 11px; color: var(--fg-dim); padding: 0 4px 6px; position: sticky; top: 0; z-index: 2; background: var(--bg-2); }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; align-content: start; }
+.thumb { height: 100px; min-width: 0; cursor: pointer; border: 2px solid transparent; border-radius: 4px; overflow: hidden; position: relative; }
+.thumb img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.thumb:hover { border-color: var(--accent); }
+.thumb.active { border-color: var(--accent-2); }
+.thumb .name { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.7); font-size: 10px; padding: 2px 4px; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.thumb .delete-btn { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; padding: 0; background: rgba(0,0,0,.75); border: 1px solid var(--err); color: var(--err); border-radius: 4px; font-size: 14px; line-height: 18px; }
+.thumb .delete-btn:hover { background: var(--err); color: #1a0808; }
+
+.group { margin-bottom: 14px; }
+.group h3 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: var(--fg-dim); text-transform: uppercase; letter-spacing: .5px; }
+textarea, input, select { width: 100%; min-width: 0; background: var(--bg-3); border: 1px solid var(--border); color: var(--fg); padding: 6px 8px; border-radius: 4px; font: inherit; }
+textarea { resize: vertical; min-height: 90px; font-family: var(--mono); font-size: 12px; line-height: 1.5; }
+textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); }
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+.row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.row > *, .row3 > *, .slider-row > *, .field-help { min-width: 0; }
+label { display: block; font-size: 11px; color: var(--fg-dim); margin: 0 0 3px; }
+.slider-row { display: grid; grid-template-columns: 1fr 56px; gap: 8px; align-items: center; }
+.slider-row input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.slider-row input[type=range]:focus { outline: none; }
+.slider-row input[type=range]::-webkit-slider-runnable-track {
+  height: 6px;
+  border: 1px solid rgba(106,169,255,.28);
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent) var(--range-progress, 0%), var(--bg-3) var(--range-progress, 0%), var(--bg-3) 100%);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.45), 0 0 0 1px rgba(0,0,0,.12);
+}
+.slider-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 3px solid var(--bg-2);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 2px 6px rgba(0,0,0,.5);
+  transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+}
+.slider-row input[type=range]:hover::-webkit-slider-thumb,
+.slider-row input[type=range]:focus::-webkit-slider-thumb {
+  transform: scale(1.12);
+  background: #9ac5ff;
+  box-shadow: 0 0 0 2px rgba(106,169,255,.28), 0 3px 8px rgba(0,0,0,.55);
+}
+.slider-row input[type=range]::-moz-range-track {
+  height: 6px;
+  border: 1px solid rgba(106,169,255,.28);
+  border-radius: 999px;
+  background: var(--bg-3);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.45), 0 0 0 1px rgba(0,0,0,.12);
+}
+.slider-row input[type=range]::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.slider-row input[type=range]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 3px solid var(--bg-2);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 2px 6px rgba(0,0,0,.5);
+  transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+}
+.slider-row input[type=range]:hover::-moz-range-thumb,
+.slider-row input[type=range]:focus::-moz-range-thumb {
+  transform: scale(1.12);
+  background: #9ac5ff;
+  box-shadow: 0 0 0 2px rgba(106,169,255,.28), 0 3px 8px rgba(0,0,0,.55);
+}
+.actions { display: flex; gap: 8px; }
+button { min-width: 0; background: var(--bg-3); color: var(--fg); border: 1px solid var(--border); padding: 6px 12px; border-radius: 4px; cursor: pointer; font: inherit; }
+button:hover { background: #2a3140; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #061226; font-weight: 600; }
+button.primary:hover { background: #5b9aff; }
+button.danger { color: var(--err); }
+.preset-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.preset-entry { display: inline-flex; align-items: center; gap: 3px; max-width: 100%; }
+.preset-chip { padding: 4px 10px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-size: 11px; }
+.preset-entry .preset-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-chip:hover { border-color: var(--accent); }
+.preset-chip.active { background: var(--accent); color: #061226; border-color: var(--accent); }
+.preset-actions { display: inline-flex; gap: 2px; }
+.preset-action { width: 24px; height: 24px; padding: 0; border-radius: 4px; font-size: 14px; line-height: 20px; }
+.preset-action.edit { color: var(--accent); border-color: rgba(106,169,255,.45); }
+.preset-action.edit:hover { background: var(--accent); color: #061226; }
+.preset-action.delete { color: var(--err); border-color: rgba(248,113,113,.45); }
+.preset-action.delete:hover { background: var(--err); color: #1a0808; }
+.aspect-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+.aspect-pill { padding: 3px 8px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-size: 11px; }
+.aspect-pill:hover { border-color: var(--accent); }
+.aspect-pill.active { background: var(--accent); color: #061226; border-color: var(--accent); }
+
+.toast-container { position: fixed; top: auto; right: 16px; bottom: 16px; z-index: 500; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; width: min(380px, calc(100vw - 32px)); max-height: min(50vh, calc(100vh - 32px)); overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; pointer-events: none; }
+.toast { width: 100%; max-width: 380px; padding: 10px 14px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border); color: var(--fg); font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; box-shadow: 0 4px 12px rgba(0,0,0,.5); pointer-events: auto; }
+.toast.error { border-color: var(--err); }
+.toast.success { border-color: var(--ok); }
+.spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--accent); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; margin-right: 4px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.gen-bar { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; font-size: 12px; color: var(--fg-dim); margin-top: 6px; }
+.ab-bar { display: flex; gap: 6px; min-width: 0; flex-wrap: wrap; margin-top: 6px; font-size: 12px; align-items: center; }
+.ab-bar button { padding: 4px 10px; font-size: 11px; }
+.compare-slot { flex: 1; padding: 10px; background: var(--bg-2); border: 1px dashed var(--border); border-radius: 6px; text-align: center; color: var(--fg-dim); min-height: 40px; }
+.compare-slot.filled { border-style: solid; border-color: var(--accent-2); color: var(--fg); }
+.compare-slot .filename { font-size: 10px; opacity: 0.7; word-break: break-all; }
+.compare-view { display: flex; gap: 12px; padding: 12px; align-items: stretch; max-height: 100%; }
+.compare-view > .ab-side { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.compare-view > .ab-side img { max-width: 100%; max-height: calc(100vh - 280px); object-fit: contain; border-radius: 4px; }
+.compare-view > .ab-side .ab-meta { font-size: 11px; color: var(--fg-dim); width: 100%; padding: 4px 6px; background: var(--bg-2); border-radius: 4px; max-height: 80px; overflow-y: auto; font-family: var(--mono); }
+.thumb { position: relative; }
+.thumb .ab-btn { position: absolute; top: 2px; left: 2px; background: rgba(0,0,0,0.7); color: var(--accent-2); border: 1px solid var(--accent-2); border-radius: 4px; padding: 0 4px; font-size: 10px; cursor: pointer; line-height: 1.4; }
+.thumb .ab-btn.added { background: var(--accent-2); color: #061226; }
+
+.help {
+  display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--bg-3); border: 1px solid var(--border);
+  text-align: center; line-height: 12px; cursor: pointer;
+  font-size: 10px; margin-left: 4px; color: var(--fg-dim);
+  user-select: none;
+}
+.help:hover { color: var(--accent); border-color: var(--accent); }
+.help.active { background: var(--accent); color: #061226; border-color: var(--accent); }
+.tooltip {
+  display: none; position: absolute; top: 22px; left: 0; z-index: 100;
+  background: var(--bg-3); border: 1px solid var(--accent);
+  padding: 8px 10px; border-radius: 4px; font-size: 11px;
+  color: var(--fg); width: min(280px, calc(100vw - 32px)); max-width: calc(100vw - 32px); line-height: 1.55; overflow-wrap: anywhere;
+  box-shadow: 0 4px 12px rgba(0,0,0,.6); text-align: left;
+  font-weight: 400; text-transform: none; letter-spacing: 0;
+}
+.tooltip b { color: var(--accent); }
+.tooltip.visible { display: block; }
+.field-help { position: relative; }
+.group h3, .field-help label { position: relative; }
+.preset-editor-modal { position: fixed; inset: 0; z-index: 260; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.72); }
+.preset-editor-modal[hidden] { display: none; }
+.preset-editor { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; box-shadow: 0 18px 48px rgba(0,0,0,.6); }
+.preset-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: var(--fg); font-weight: 600; }
+.preset-editor-head button { width: 28px; height: 28px; padding: 0; font-size: 20px; line-height: 22px; }
+.preset-editor textarea { min-height: 110px; margin-bottom: 8px; }
+.preset-editor .row { margin-top: 2px; }
+.preset-editor .actions { justify-content: flex-end; margin-top: 12px; }
+
+@media (max-width: 900px) {
+  body { height: auto; min-height: 100vh; overflow: auto; }
+  header { align-items: flex-start; flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
+  .title { flex: 1 1 100%; min-width: 0; }
+  .title .sub { display: block; margin: 2px 0 0; }
+  .status { width: 100%; flex-wrap: wrap; }
+  .status #statusText { flex: 1 1 100%; }
+  .status button { flex: 1 1 120px; }
+  main { grid-template-columns: minmax(0, 1fr); }
+  aside.left { overflow: visible; border-right: 0; border-bottom: 1px solid var(--border); }
+  section.right { min-height: 620px; }
+  .preview-pane { min-height: 380px; }
+  .gallery-pane { height: 220px; }
+  .actions, .ab-bar { flex-wrap: wrap; }
+  .actions > button, .ab-bar > button { flex: 1 1 120px; }
+  .compare-view { flex-direction: column; overflow-y: auto; }
+  .compare-view > .ab-side img { max-height: 42vh; }
+  .tooltip { width: min(280px, calc(100vw - 32px)); max-width: calc(100vw - 32px); }
+}
+
+@media (max-width: 520px) {
+  .row, .row3 { grid-template-columns: minmax(0, 1fr); }
+  .slider-row { grid-template-columns: minmax(0, 1fr) 64px; }
+  .preview-pane .preview-actions { left: 12px; right: 12px; justify-content: flex-start; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="false"></div>
+
+<header>
+  <div class="title">ComfyUI 生图系统 <span class="sub">Z-Image Turbo + Flux</span></div>
+  <div class="status">
+    <span class="dot" id="statusDot"></span>
+    <span id="statusText">connecting…</span>
+    <button onclick="rescanLoras()" style="padding: 3px 8px; font-size: 11px;" title="重新扫描 LoRA 目录">🔄 扫描 LoRA</button>
+    <button id="comfyStartBtn" onclick="startComfyUI()" style="padding: 3px 8px; font-size: 11px; display: none;">▶ 启动 ComfyUI</button>
+  </div>
+</header>
+
+<main>
+  <aside class="left">
+    <div class="group">
+      <h3>主模型 (Model) <span class="help" data-tip="model">?</span><div class="tooltip" data-for="model"><b>主模型选择</b><br>切换 Flux 和 Z-Image Turbo。<br>LoRA 列表会自动过滤，Z-Image 只能选 Z-Image 的 LoRA，Flux 只能选 Flux 的 LoRA。</div></h3>
+      <select id="model" style="font-weight: 600;" onchange="onModelChange()"></select>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
+        <div><label>批量张数 (Batch)</label>
+          <input type="number" id="batchSize" value="1" min="1" max="10" step="1" title="批量大于 1 时，每张图片自动使用不同随机种子">
+        </div>
+        <div><label>主模型 LoRA 槽</label>
+        <div id="loraSlotCaption" style="font-size: 11px; color: var(--fg-dim); padding-top: 6px;">按模型限制</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>提示词 (Prompt)</h3>
+      <div style="display: flex; gap: 6px; align-items: flex-start;">
+        <textarea id="prompt" placeholder="正向提示词… 支持中文，点右侧翻译按钮自动转英文" style="flex:1; min-width:0;"></textarea>
+        <div style="display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;">
+          <button id="translateBtn" onclick="translatePrompt()" style="padding: 6px 10px; white-space: nowrap;" title="把当前提示词（中文/混合）翻译成英文">🌐 翻译</button>
+          <button id="promptDiceBtn" onclick="rollPromptStyle()" style="padding: 6px 10px; white-space: nowrap;" title="在 Prompt 末尾随机追加电影质感提示词">🎲 随机</button>
+        </div>
+      </div>
+      <label style="margin-top: 6px;">负面提示词 (Negative)</label>
+      <textarea id="negative" placeholder="可选；留空时使用工作流默认负面条件" style="min-height: 50px;"></textarea>
+    </div>
+
+    <div class="group" id="teacacheGroup">
+      <h3>尺寸 (Dimensions)</h3>
+      <div class="aspect-pills" id="aspectPills">
+        <span class="aspect-pill" data-w="1024" data-h="1024">1024×1024</span>
+        <span class="aspect-pill" data-w="1536" data-h="864">1536×864 横版</span>
+        <span class="aspect-pill" data-w="864" data-h="1536">864×1536 竖版</span>
+        <span class="aspect-pill" data-w="1280" data-h="720">1280×720 16:9</span>
+        <span class="aspect-pill" data-w="1152" data-h="896">1152×896 9:7</span>
+      </div>
+      <div class="row">
+        <div><label>宽</label><input type="number" id="width" value="1536" step="64" min="256" max="2048"></div>
+        <div><label>高</label><input type="number" id="height" value="864" step="64" min="256" max="2048"></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>采样参数 (Sampling)</h3>
+      <div class="row">
+        <div class="field-help"><label>步数 Steps <span class="help" data-tip="steps">?</span><div class="tooltip" data-for="steps"><b>步数 (Steps)</b><br>降噪迭代次数。越多细节越多、越慢。<br>调参：15=快速测试，25–30=标准，35+=高质量。<br>建议：Flux 25–30 性价比最高。低于 15 会糊，高于 40 收益递减。</div></label>
+          <div class="slider-row"><input type="range" id="stepsR" min="10" max="60" value="30"><input type="number" id="steps" value="30" min="1" max="200"></div>
+        </div>
+        <div class="field-help"><label>CFG <span class="help" data-tip="cfg">?</span><div class="tooltip" data-for="cfg"><b>CFG (Classifier-Free Guidance)</b><br>提示词服从度。越高越"听话"，越低越自由发挥。<br>调参：1.0 = Flux 官方推荐；&gt;2 会过饱和、出现色斑；&lt;0.5 会忽略提示词。<br>建议：默认 1.0 别动。除非你明确想要夸张诠释再调高。</div></label>
+          <div class="slider-row"><input type="range" id="cfgR" min="0" max="10" step="0.1" value="1.0"><input type="number" id="cfg" value="1.0" step="0.1" min="0" max="30"></div>
+        </div>
+      </div>
+      <div class="row" style="margin-top: 6px;">
+        <div class="field-help"><label>采样器 Sampler <span class="help" data-tip="sampler">?</span><div class="tooltip" data-for="sampler"><b>采样器 (Sampler)</b><br>用哪种算法一步步去噪。<br>常用：<br>• <b>euler</b> — 最稳，速度快，标准选择<br>• <b>euler_ancestral</b> — 每步加噪，构图变化更大<br>• <b>dpmpp_2m</b> — 二阶收敛，细节好，30 步 ≈ euler 50 步<br>• <b>heun</b> — 慢但精度高<br>建议：起步用 <b>euler</b>；想要更多变化换 <b>euler_ancestral</b>；追求质感换 <b>dpmpp_2m</b>。</div></label>
+          <select id="sampler">
+            <option>euler</option><option>euler_ancestral</option><option>heun</option>
+            <option>dpmpp_2m</option><option>dpmpp_sde</option><option>dpmpp_2m_sde</option>
+            <option>uni_pc</option><option>lms</option><option>res_multistep</option>
+          </select>
+        </div>
+        <div class="field-help"><label>调度器 Scheduler <span class="help" data-tip="scheduler">?</span><div class="tooltip" data-for="scheduler"><b>调度器 (Scheduler)</b><br>每一步去噪强度的衰减曲线。<br>常用：<br>• <b>simple</b> — 线性衰减，最稳，Flux 默认<br>• <b>karras</b> — 收敛快，对比强，质感更突出<br>• <b>sgm_uniform</b> — Flux 训练时用的，可以试<br>建议：默认 <b>simple</b>。想要更电影感换 <b>karras</b>。</div></label>
+          <select id="scheduler">
+            <option>simple</option><option>normal</option><option>karras</option>
+            <option>exponential</option><option>sgm_uniform</option><option>ddim_uniform</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>种子 & 文件</h3>
+      <div class="row">
+        <div><label>种子 (Seed)</label>
+          <div style="display:flex; gap:4px;">
+            <input type="number" id="seed" value="7777" style="flex:1;">
+            <button onclick="randomSeed()" style="padding: 6px 8px;">🎲</button>
+          </div>
+        </div>
+        <div><label>文件名前缀</label><input type="text" id="prefix" value="FluxGGUF_web"></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>LoRA（按主模型过滤）</h3>
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+        <label style="margin: 0; white-space: nowrap;">LoRA 数量:</label>
+        <input type="number" id="loraCount" value="3" min="1" max="6" step="1" style="width: 60px;" onchange="onLoraCountChange()">
+        <span id="loraCountHint" style="color: var(--fg-dim); font-size: 11px;"></span>
+      </div>
+      <div id="loraSlots"></div>
+      <div style="margin-top: 6px;">
+        <button onclick="refreshLoraSlots()" style="width: 100%; padding: 6px; font-size: 11px;">🔍 刷新 LoRA 列表</button>
+      </div>
+    </div>
+
+
+    <div class="group">
+      <h3>加速 TeaCache <span class="help" data-tip="teacache">?</span><div class="tooltip" data-for="teacache"><b>TeaCache 加速</b><br>缓存 timestep 接近的中间特征，约提速 1.5–2×，牺牲微小细节差异。<br>调参：0 = 关闭，0.2 = GGUF 量化版推荐（~1.5-2× 加速，几乎无感），0.3 = 略激进（轻度噪点），0.4+ 不推荐（GGUF 量化模型会出马赛克伪影）。<br>建议：默认 0.4 开。速度优先调到 0.6–0.8，质量优先调到 0.2 或 0。<br>加速比：<br>• 0.2 ≈ 1.2× 加速，几乎无视觉差异<br>• 0.4 ≈ 1.5–2× 加速，<br>• 0.8+ ≈ 2.5×+ 加速，可能丢失极细微细节</div></h3>
+      <div class="slider-row"><input type="range" id="teacacheR" min="0" max="1.5" step="0.05" value="0.2"><input type="number" id="teacache" value="0.2" step="0.05" min="0" max="5"></div>
+    </div>
+
+    <div class="group">
+      <h3>提示词预设</h3>
+      <div class="preset-row" id="presetRow"><span style="color: var(--fg-dim); font-size: 11px;">载入中…</span></div>
+      <div class="actions" style="margin-top: 6px;">
+        <button onclick="saveCurrentAsPreset()" style="flex:1;">💾 保存当前为预设</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="actions">
+        <button class="primary" onclick="generate()" id="genBtn" style="flex:1; padding: 10px;">🎨 生成图片</button>
+        <button onclick="cancelActiveJob()" id="cancelBtn" style="display:none; padding: 10px;">取消</button>
+      </div>
+      <div class="gen-bar" id="genBar"></div>
+    </div>
+  </aside>
+
+  <section class="right">
+    <div class="ab-bar" id="abBar"></div>
+    <div class="preview-pane" id="preview">
+      <div class="empty">等待第一张图…</div>
+    </div>
+    <div class="gallery-pane">
+      <div class="label" id="galleryLabel">历史记录</div>
+      <div class="gallery" id="gallery"></div>
+    </div>
+  </section>
+</main>
+
+<div class="image-modal" id="imageModal" hidden>
+  <button class="close" id="imageModalClose" type="button" title="关闭大图">×</button>
+  <img id="imageModalImg" alt="">
+  <div class="caption" id="imageModalCaption"></div>
+</div>
+
+<div class="preset-editor-modal" id="presetEditorModal" hidden>
+  <div class="preset-editor">
+    <div class="preset-editor-head">
+      <span>编辑提示词预设</span>
+      <button type="button" id="presetEditorClose" title="关闭">×</button>
+    </div>
+    <label>预设名称</label>
+    <input type="text" id="presetEditName" autocomplete="off">
+    <label style="margin-top: 8px;">Prompt</label>
+    <textarea id="presetEditPrompt"></textarea>
+    <label>Negative</label>
+    <textarea id="presetEditNegative" style="min-height: 70px;"></textarea>
+    <div class="row">
+      <div><label>宽</label><input type="number" id="presetEditWidth" min="256" max="2048" step="64"></div>
+      <div><label>高</label><input type="number" id="presetEditHeight" min="256" max="2048" step="64"></div>
+    </div>
+    <div style="margin-top: 8px;"><label>种子</label><input type="number" id="presetEditSeed"></div>
+    <div class="actions">
+      <button type="button" onclick="closePresetEditor()">取消</button>
+      <button type="button" class="primary" onclick="savePresetEditor()">保存修改</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+// --- model + LoRA state ---
+let availableModels = [];
+let currentModelCfg = null;
+let loraSlotsState = []; // {name, weight} - dynamic length
+let loraSlotCount = 3;
+
+function getMaxLoraSlots() {
+  // Use model registry's max_loras if defined, otherwise 6
+  if (currentModelCfg && typeof currentModelCfg.max_loras === "number") {
+    return currentModelCfg.max_loras;
+  }
+  return 6;
+}
+
+function onLoraCountChange() {
+  const n = Math.max(1, Math.min(6, parseInt($("loraCount").value) || 3));
+  loraSlotCount = n;
+  // Pad or trim loraSlotsState
+  while (loraSlotsState.length < n) loraSlotsState.push({name: "none", weight: 0});
+  loraSlotsState = loraSlotsState.slice(0, n);
+  renderLoraSlots();
+  toast("LoRA 数量: " + n, "success");
+}
+
+function buildLoraSlot(idx, currentValue) {
+  const opts = (currentModelCfg && currentModelCfg.compatible_loras) || [];
+  const optsHtml = opts.map(l => {
+    const isSel = (l.name === (currentValue && currentValue.name)) ? 'selected' : '';
+    return `<option value="${l.name}" ${isSel}>${l.display}</option>`;
+  }).join('');
+  const w = currentValue ? currentValue.weight : 0.5;
+  return `
+    <div style="margin-bottom: 8px;">
+      <label>LoRA ${idx+1}</label>
+      <div style="display: grid; grid-template-columns: 1fr 70px; gap: 6px;">
+        <select id="loraSel${idx}" onchange="onLoraSlotChange(${idx})" style="width: 100%;">
+          ${optsHtml}
+        </select>
+        <input type="number" id="loraWt${idx}" value="${w}" min="0" max="2" step="0.05" onchange="onLoraWeightChange(${idx})">
+      </div>
+    </div>`;
+}
+
+function renderLoraSlots() {
+  const container = $("loraSlots");
+  if (!container) return;
+  const maxSlots = getMaxLoraSlots();
+  if (loraSlotCount > maxSlots) loraSlotCount = maxSlots;
+  if (loraSlotsState.length < loraSlotCount) {
+    while (loraSlotsState.length < loraSlotCount) loraSlotsState.push({name: "none", weight: 0});
+  } else if (loraSlotsState.length > loraSlotCount) {
+    loraSlotsState = loraSlotsState.slice(0, loraSlotCount);
+  }
+  const cntInput = $("loraCount");
+  if (cntInput) {
+    cntInput.value = loraSlotCount;
+    cntInput.max = maxSlots;
+  }
+  const hint = $("loraCountHint");
+  if (hint) hint.textContent = "(max " + maxSlots + ")";
+  const caption = $("loraSlotCaption");
+  if (caption) caption.textContent = "最多 " + maxSlots + " 个";
+  container.innerHTML = "";
+  for (let i = 0; i < loraSlotCount; i++) {
+    container.insertAdjacentHTML("beforeend", buildLoraSlot(i, loraSlotsState[i]));
+  }
+  console.log("LoRA slots rendered for model:", currentModelCfg ? currentModelCfg.id : "none",
+    "available:", currentModelCfg ? currentModelCfg.compatible_loras.length : 0,
+    "slots:", loraSlotCount, "max:", maxSlots);
+}
+
+function onLoraSlotChange(idx) {
+  const name = $(`loraSel${idx}`).value;
+  loraSlotsState[idx] = { name, weight: parseFloat($(`loraWt${idx}`).value) || 0.5 };
+}
+
+function onLoraWeightChange(idx) {
+  if (!loraSlotsState[idx]) loraSlotsState[idx] = { name: "none", weight: 0 };
+  loraSlotsState[idx].weight = parseFloat($(`loraWt${idx}`).value) || 0;
+}
+
+function refreshLoraSlots() {
+  renderLoraSlots();
+  toast("LoRA 列表已刷新", "success");
+}
+
+async function loadModels() {
+  try {
+    const r = await fetch("/api/models");
+    const j = await r.json();
+    availableModels = j.models || [];
+    const sel = ui.model;
+    if (!sel) return;
+    sel.innerHTML = availableModels.map(m => `<option value="${m.id}">${m.name}</option>`).join("");
+    if (availableModels.length) {
+      const preferred = availableModels.find(m => m.id === "z_image_turbo") || availableModels[0];
+      sel.value = preferred.id;
+      onModelChange();
+    }
+  } catch (e) { toast("加载模型失败: " + e.message, "error"); }
+}
+
+function onModelChange() {
+  const id = ui.model.value;
+  currentModelCfg = availableModels.find(m => m.id === id) || null;
+  if (!currentModelCfg) return;
+  // reset LoRA slots to defaults from model cfg
+  loraSlotsState = (currentModelCfg.default_loras || []).map(d => ({name: d.name, weight: d.weight}));
+  // Cap slot count by model max_loras
+  const maxSlots = getMaxLoraSlots();
+  if (loraSlotCount > maxSlots) loraSlotCount = maxSlots;
+  while (loraSlotsState.length < loraSlotCount) loraSlotsState.push({name: "none", weight: 0});
+  loraSlotsState = loraSlotsState.slice(0, loraSlotCount);
+  renderLoraSlots();
+  // update sampler defaults
+  if (currentModelCfg.default_settings) {
+    const s = currentModelCfg.default_settings;
+    if (s.steps) { ui.steps.value = s.steps; ui.stepsR.value = s.steps; }
+    if (s.cfg !== undefined) { ui.cfg.value = s.cfg; ui.cfgR.value = s.cfg; }
+    if (s.sampler && Array.from(ui.sampler.options).some(o => o.value === s.sampler)) ui.sampler.value = s.sampler;
+    if (s.scheduler && Array.from(ui.scheduler.options).some(o => o.value === s.scheduler)) ui.scheduler.value = s.scheduler;
+  }
+  const teacacheGroup = $("teacacheGroup");
+  if (teacacheGroup) teacacheGroup.style.display = currentModelCfg.id === "flux1-dev" ? "block" : "none";
+  updateAllRangeVisuals();
+  toast("已切换: " + currentModelCfg.name, "success");
+}
+
+async function rescanLoras() {
+  toast("正在扫描 LoRA...", "success");
+  try {
+    const r = await fetch("/api/lora-rescan");
+    const j = await r.json();
+    toast("扫描完成: " + j.count + " 个 LoRA", "success");
+    await loadModels();
+  } catch (e) { toast("扫描失败: " + e.message, "error"); }
+}
+
+function parsePngTextMetadata(arr) {
+  const meta = {};
+  if (!arr || arr.length < 8) return meta;
+  const text = new TextDecoder("utf-8");
+  let off = 8;
+  while (off + 12 <= arr.length) {
+    const len = new DataView(arr.buffer, arr.byteOffset + off, 4).getUint32(0);
+    const type = text.decode(arr.slice(off + 4, off + 8));
+    const dataStart = off + 8;
+    const dataEnd = dataStart + len;
+    if (dataEnd + 4 > arr.length) break;
+    const data = arr.slice(dataStart, dataEnd);
+    if (type === "tEXt") {
+      const nul = data.indexOf(0);
+      if (nul > 0) {
+        meta[text.decode(data.slice(0, nul))] = text.decode(data.slice(nul + 1));
+      }
+    } else if (type === "iTXt") {
+      // keyword\0 compression_flag compression_method language\0 translated_keyword\0 text
+      const keywordEnd = data.indexOf(0);
+      if (keywordEnd > 0 && data.length > keywordEnd + 2) {
+        const key = text.decode(data.slice(0, keywordEnd));
+        const compressed = data[keywordEnd + 1] !== 0;
+        let pos = keywordEnd + 3;
+        const languageEnd = data.indexOf(0, pos);
+        if (languageEnd >= 0) {
+          pos = languageEnd + 1;
+          const translatedEnd = data.indexOf(0, pos);
+          if (translatedEnd >= 0 && !compressed) {
+            meta[key] = text.decode(data.slice(translatedEnd + 1));
+          }
+        }
+      }
+    }
+    off = dataEnd + 4;
+    if (type === "IEND") break;
+  }
+  return meta;
+}
+
+async function restoreFromImage(filename, silent = false) {
+  try {
+    const url = "/api/outputs/" + encodeURIComponent(filename);
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("fetch failed: " + r.status);
+    const blob = await r.blob();
+    const arr = new Uint8Array(await blob.arrayBuffer());
+    const meta = parsePngTextMetadata(arr);
+    if (Object.keys(meta).length === 0) {
+      if (!silent) toast("这张图没有元数据", "error");
+      return false;
+    }
+    // Older ComfyUI images may store the whole API workflow in prompt JSON.
+    const rawPrompt = meta.prompt;
+    if (rawPrompt && rawPrompt.trim().startsWith("{")) {
+      try {
+        const native = JSON.parse(rawPrompt);
+        const nodes = Object.values(native).filter(n => n && typeof n === "object");
+        const sampler = nodes.find(n => ["KSampler", "KSamplerAdvanced"].includes(n.class_type));
+        const latent = nodes.find(n => ["EmptyLatentImage", "EmptySD3LatentImage"].includes(n.class_type));
+        const textNode = nodes.find(n => n.class_type === "CLIPTextEncode");
+        if (textNode?.inputs?.text) meta.prompt = textNode.inputs.text;
+        if (sampler?.inputs) {
+          for (const key of ["seed", "steps", "cfg", "sampler_name", "scheduler", "denoise"]) {
+            if (sampler.inputs[key] !== undefined) meta[key === "sampler_name" ? "sampler" : key] = String(sampler.inputs[key]);
+          }
+        }
+        if (latent?.inputs) {
+          if (latent.inputs.width !== undefined) meta.width = String(latent.inputs.width);
+          if (latent.inputs.height !== undefined) meta.height = String(latent.inputs.height);
+        }
+        const loras = nodes.filter(n => n.class_type === "LoraLoader");
+        loras.forEach((node, i) => {
+          if (i < 6) {
+            meta[`lora${i + 1}_name`] = node.inputs?.lora_name || "none";
+            meta[`lora${i + 1}_weight`] = String(node.inputs?.strength_model ?? 0);
+          }
+        });
+      } catch (e) {
+        // Keep the raw custom metadata path below when prompt is not workflow JSON.
+      }
+    }
+    // Restore form fields
+    if (meta.prompt) ui.prompt.value = meta.prompt;
+    if (Object.prototype.hasOwnProperty.call(meta, "negative")) ui.negative.value = meta.negative;
+    if (Object.prototype.hasOwnProperty.call(meta, "seed")) ui.seed.value = meta.seed;
+    if (meta.model_id) {
+      const found = availableModels.find(m => m.id === meta.model_id);
+      if (found) { ui.model.value = found.id; onModelChange(); }
+    }
+    if (Object.prototype.hasOwnProperty.call(meta, "steps")) { ui.steps.value = meta.steps; ui.stepsR.value = meta.steps; }
+    if (Object.prototype.hasOwnProperty.call(meta, "cfg")) { ui.cfg.value = meta.cfg; ui.cfgR.value = meta.cfg; }
+    if (meta.sampler) ui.sampler.value = meta.sampler;
+    if (meta.scheduler) ui.scheduler.value = meta.scheduler;
+    if (Object.prototype.hasOwnProperty.call(meta, "width")) ui.width.value = meta.width;
+    if (Object.prototype.hasOwnProperty.call(meta, "height")) ui.height.value = meta.height;
+    if (Object.prototype.hasOwnProperty.call(meta, "teacache_thresh")) { ui.teacache.value = meta.teacache_thresh; ui.teacacheR.value = meta.teacache_thresh; }
+    // restore LoRAs
+    const newLoras = [];
+    let activeLoraCount = 0;
+    for (let i = 1; i <= 6; i++) {
+      const n = meta[`lora${i}_name`];
+      const w = parseFloat(meta[`lora${i}_weight`] ?? meta[`lora${i}_strength`] ?? 0) || 0;
+      if (n && n !== "none" && n !== "") newLoras.push({name: n, weight: w});
+      if (n && n !== "none" && n !== "" && w !== 0) activeLoraCount = i;
+    }
+    loraSlotCount = Math.min(getMaxLoraSlots(), Math.max(3, activeLoraCount || 3));
+    loraSlotsState = [];
+    for (let i = 1; i <= loraSlotCount; i++) {
+      const n = meta[`lora${i}_name`] || "none";
+      const w = parseFloat(meta[`lora${i}_weight`] ?? meta[`lora${i}_strength`] ?? 0) || 0;
+      loraSlotsState.push({name: n, weight: w});
+    }
+    renderLoraSlots();
+    updateAllRangeVisuals();
+    toast("已恢复参数 (seed=" + (meta.seed || "?") + ")", "success");
+    return true;
+  } catch (e) {
+    if (!silent) toast("恢复失败: " + e.message, "error");
+    return false;
+  }
+}
+
+
+const ui = {
+  prompt: $("prompt"), negative: $("negative"),
+  model: $("model"), batchSize: $("batchSize"), loraCount: $("loraCount"),
+  width: $("width"), height: $("height"),
+  steps: $("steps"), stepsR: $("stepsR"),
+  cfg: $("cfg"), cfgR: $("cfgR"),
+  sampler: $("sampler"), scheduler: $("scheduler"),
+  seed: $("seed"), prefix: $("prefix"),
+  lora1: $("lora1"), lora1R: $("lora1R"),
+  lora2: $("lora2"), lora2R: $("lora2R"),
+  teacache: $("teacache"), teacacheR: $("teacacheR"),
+  statusDot: $("statusDot"), statusText: $("statusText"),
+  preview: $("preview"), gallery: $("gallery"),
+  galleryLabel: $("galleryLabel"),
+  imageModal: $("imageModal"), imageModalImg: $("imageModalImg"),
+  imageModalCaption: $("imageModalCaption"), imageModalClose: $("imageModalClose"),
+  presetEditorModal: $("presetEditorModal"), presetEditorClose: $("presetEditorClose"),
+  presetEditName: $("presetEditName"), presetEditPrompt: $("presetEditPrompt"),
+  presetEditNegative: $("presetEditNegative"), presetEditWidth: $("presetEditWidth"),
+  presetEditHeight: $("presetEditHeight"), presetEditSeed: $("presetEditSeed"),
+  presetRow: $("presetRow"),
+  genBtn: $("genBtn"), cancelBtn: $("cancelBtn"), genBar: $("genBar"),
+};
+let presets = [];
+let defaults = [];
+let generating = false;
+let editingPresetName = "";
+
+ui.imageModalClose.onclick = closeImageModal;
+ui.imageModal.onclick = (event) => {
+  if (event.target === ui.imageModal) closeImageModal();
+};
+ui.presetEditorClose.onclick = closePresetEditor;
+ui.presetEditorModal.onclick = (event) => {
+  if (event.target === ui.presetEditorModal) closePresetEditor();
+};
+
+function toast(msg, kind) {
+  const t = document.createElement("div");
+  t.className = "toast" + (kind ? " " + kind : "");
+  t.textContent = msg;
+  t.setAttribute("role", kind === "error" ? "alert" : "status");
+  const root = document.getElementById("toastContainer") || document.body;
+  root.appendChild(t);
+  while (root.classList.contains("toast-container") && root.children.length > 4) {
+    root.firstElementChild.remove();
+  }
+  setTimeout(() => t.remove(), 4500);
+}
+
+function syncPair(range, num) {
+  range.addEventListener("input", () => {
+    num.value = range.value;
+    updateRangeVisual(range);
+  });
+  num.addEventListener("input", () => {
+    range.value = num.value;
+    updateRangeVisual(range);
+  });
+  updateRangeVisual(range);
+}
+
+function updateRangeVisual(range) {
+  const min = Number.parseFloat(range.min);
+  const max = Number.parseFloat(range.max);
+  const value = Number.parseFloat(range.value);
+  const pct = Number.isFinite(min) && Number.isFinite(max) && Number.isFinite(value) && max > min
+    ? Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100))
+    : 0;
+  range.style.setProperty("--range-progress", pct + "%");
+}
+
+function updateAllRangeVisuals() {
+  document.querySelectorAll('.slider-row input[type="range"]').forEach(updateRangeVisual);
+}
+syncPair(ui.stepsR, ui.steps);
+syncPair(ui.cfgR, ui.cfg);
+syncPair(ui.teacacheR, ui.teacache);
+
+document.querySelectorAll(".aspect-pill").forEach(p => {
+  p.addEventListener("click", () => {
+    document.querySelectorAll(".aspect-pill").forEach(x => x.classList.remove("active"));
+    p.classList.add("active");
+    ui.width.value = p.dataset.w;
+    ui.height.value = p.dataset.h;
+  });
+});
+
+function randomSeed() {
+  ui.seed.value = Math.floor(Math.random() * 1e9);
+}
+
+async function checkStatus() {
+  try {
+    const r = await fetch("/api/status");
+    const j = await r.json();
+    if (j.ok) {
+      ui.statusDot.className = "dot ok";
+      ui.statusText.textContent = `ComfyUI ok · ${j.url || "127.0.0.1:8188"} · device=${j.device || "?"} · queue=${j.queue_running}/${j.queue_pending}`;
+      const startBtn = $("comfyStartBtn");
+      if (startBtn) startBtn.style.display = "none";
+    } else {
+      ui.statusDot.className = "dot err";
+      ui.statusText.textContent = "ComfyUI 未运行: " + (j.error || "");
+      const startBtn = $("comfyStartBtn");
+      if (startBtn) startBtn.style.display = "inline-block";
+    }
+  } catch (e) {
+    ui.statusDot.className = "dot err";
+    ui.statusText.textContent = "前端服务异常: " + e.message;
+  }
+}
+
+async function startComfyUI() {
+  const btn = $("comfyStartBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "⏳ 启动中…";
+  }
+  toast("正在启动 ComfyUI，首次加载可能需要几十秒…", "success");
+  try {
+    const r = await fetch("/api/comfyui-start", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: "{}",
+    });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.error || ("HTTP " + r.status));
+    toast("ComfyUI 已连接: " + (j.url || ""), "success");
+    await checkStatus();
+  } catch (e) {
+    toast("ComfyUI 启动失败: " + e.message, "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "▶ 启动 ComfyUI";
+    }
+  }
+}
+
+async function loadPresets() {
+  try {
+    const r = await fetch("/api/prompts");
+    const j = await r.json();
+    presets = j.presets || [];
+    defaults = j.defaults || [];
+    renderPresets();
+  } catch (e) {
+    ui.presetRow.innerHTML = `<span style="color: var(--err); font-size: 11px;">载入预设失败</span>`;
+  }
+}
+
+function renderPresets() {
+  ui.presetRow.innerHTML = "";
+  const all = [
+    ...defaults.map(p => ({...p, _isDefault: true})),
+    ...presets,
+  ];
+  if (!all.length) {
+    ui.presetRow.innerHTML = `<span style="color: var(--fg-dim); font-size: 11px;">还没有预设，点下方"保存当前为预设"</span>`;
+    return;
+  }
+  all.forEach(p => {
+    const entry = document.createElement("div");
+    entry.className = "preset-entry";
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "preset-chip";
+    chip.textContent = (p._isDefault ? "★ " : "") + p.name;
+    const promptText = String(p.prompt || "");
+    chip.title = promptText.slice(0, 80) + (promptText.length > 80 ? "…" : "");
+    chip.onclick = () => applyPreset(p);
+    entry.appendChild(chip);
+    if (!p._isDefault) {
+      const actions = document.createElement("span");
+      actions.className = "preset-actions";
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "preset-action edit";
+      edit.textContent = "✎";
+      edit.title = "修改预设";
+      edit.onclick = event => { event.stopPropagation(); openPresetEditor(p); };
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "preset-action delete";
+      remove.textContent = "×";
+      remove.title = "删除预设";
+      remove.onclick = event => { event.stopPropagation(); deletePreset(p); };
+      actions.append(edit, remove);
+      entry.appendChild(actions);
+    }
+    ui.presetRow.appendChild(entry);
+  });
+}
+
+function applyPreset(p) {
+  ui.prompt.value = p.prompt || "";
+  ui.negative.value = p.negative || "";
+  if (p.width) ui.width.value = p.width;
+  if (p.height) ui.height.value = p.height;
+  if (p.seed !== undefined) ui.seed.value = p.seed;
+  toast("已应用预设: " + p.name, "success");
+}
+
+function openPresetEditor(p) {
+  if (!p || p._isDefault) return;
+  editingPresetName = p.name;
+  ui.presetEditName.value = p.name || "";
+  ui.presetEditPrompt.value = p.prompt || "";
+  ui.presetEditNegative.value = p.negative || "";
+  ui.presetEditWidth.value = p.width || 1024;
+  ui.presetEditHeight.value = p.height || 1024;
+  ui.presetEditSeed.value = p.seed ?? "";
+  ui.presetEditorModal.hidden = false;
+  ui.presetEditName.focus();
+  ui.presetEditName.select();
+}
+
+function closePresetEditor() {
+  editingPresetName = "";
+  if (ui.presetEditorModal) ui.presetEditorModal.hidden = true;
+}
+
+async function savePresetEditor() {
+  const name = ui.presetEditName.value.trim();
+  if (!name) {
+    toast("预设名称不能为空", "error");
+    ui.presetEditName.focus();
+    return;
+  }
+  const preset = {
+    name,
+    prompt: ui.presetEditPrompt.value,
+    negative: ui.presetEditNegative.value,
+    width: parseInt(ui.presetEditWidth.value) || 1024,
+    height: parseInt(ui.presetEditHeight.value) || 1024,
+    seed: parseInt(ui.presetEditSeed.value) || 0,
+  };
+  const oldName = editingPresetName;
+  try {
+    const r = await fetch("/api/prompts", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({preset}),
+    });
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.error || ("HTTP " + r.status));
+    if (oldName && j.name !== oldName) {
+      const oldResponse = await fetch("/api/prompts/" + encodeURIComponent(oldName), {method: "DELETE"});
+      if (!oldResponse.ok) throw new Error("旧预设删除失败，已保留新预设");
+    }
+    closePresetEditor();
+    await loadPresets();
+    toast("预设已修改: " + j.name, "success");
+  } catch (e) {
+    toast("修改预设失败: " + e.message, "error");
+  }
+}
+
+async function deletePreset(p) {
+  if (!p || p._isDefault) return;
+  if (!confirm(`确认删除预设“${p.name}”？\n\n此操作无法恢复。`)) return;
+  try {
+    const r = await fetch("/api/prompts/" + encodeURIComponent(p.name), {method: "DELETE"});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ("HTTP " + r.status));
+    await loadPresets();
+    toast("预设已删除: " + p.name, "success");
+  } catch (e) {
+    toast("删除预设失败: " + e.message, "error");
+  }
+}
+
+async function saveCurrentAsPreset() {
+  const name = prompt("预设名:", "my-preset");
+  if (!name) return;
+  const preset = {
+    name: name.trim(),
+    prompt: ui.prompt.value,
+    negative: ui.negative.value,
+    width: parseInt(ui.width.value),
+    height: parseInt(ui.height.value),
+    seed: parseInt(ui.seed.value),
+  };
+  try {
+    const r = await fetch("/api/prompts", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({preset}),
+    });
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    toast("已保存: " + j.name, "success");
+    await loadPresets();
+  } catch (e) {
+    toast("保存失败: " + e.message, "error");
+  }
+}
+
+async function refreshGallery() {
+  try {
+    const r = await fetch("/api/outputs");
+    const j = await r.json();
+    ui.gallery.innerHTML = "";
+    const files = j.files || [];
+    if (ui.galleryLabel) ui.galleryLabel.textContent = `历史记录（${files.length}）`;
+    files.forEach(f => {
+      const t = document.createElement("div");
+      t.className = "thumb";
+      t.dataset.name = f.name;
+      t.innerHTML = `<img src="${f.url}" loading="lazy" alt=""><div class="name">${f.name}</div>`;
+      t.onclick = () => { showPreview(f); restoreFromImage(f.name, true); };
+      t.ondblclick = (event) => { event.preventDefault(); event.stopPropagation(); openImageModal(f); };
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "delete-btn";
+      deleteBtn.textContent = "×";
+      deleteBtn.title = "删除图片（同时删除电脑上的真实文件）";
+      deleteBtn.onclick = (event) => { event.stopPropagation(); deleteImage(f); };
+      t.appendChild(deleteBtn);
+      t.insertAdjacentHTML("beforeend", `<div class="ab-btn" onclick="event.stopPropagation(); addToCompare('${f.name.replace(/'/g, "\\'")}')" title="加入 A/B 对比">A/B</div>`);
+      ui.gallery.appendChild(t);
+    });
+  } catch (e) {
+    console.warn("gallery err", e);
+  }
+}
+
+function showPreview(f) {
+  document.querySelectorAll(".thumb").forEach(x => x.classList.remove("active"));
+  const thumb = [...ui.gallery.children].find(t => t.dataset.name === f.name);
+  if (thumb) thumb.classList.add("active");
+  ui.preview._lastImage = f;
+  ui.preview.innerHTML = `<img src="${f.url}" alt=""><div class="meta">${f.name} · ${(f.size/1024/1024).toFixed(2)} MB · ${new Date(f.mtime*1000).toLocaleString()}</div>
+    <div class="preview-actions">
+      <button onclick="restoreFromImage('${f.name}')" style="padding:4px 10px; font-size:11px; background:rgba(0,0,0,0.7); border:1px solid #6aa9ff; color:#6aa9ff; border-radius:4px; cursor:pointer;" title="从图片的 PNG 元数据恢复所有参数">↻ 恢复参数</button>
+      <button onclick="deleteCurrentPreview()" style="padding:4px 10px; font-size:11px; background:rgba(0,0,0,0.7); border:1px solid #f87171; color:#f87171; border-radius:4px; cursor:pointer;" title="删除图片并删除电脑上的真实文件">删除</button>
+    </div>`;
+  const previewImage = ui.preview.querySelector("img");
+  if (previewImage) previewImage.ondblclick = () => openImageModal(f);
+}
+
+function openImageModal(file) {
+  if (!file || !file.url || !ui.imageModal) return;
+  ui.imageModalImg.src = file.url;
+  ui.imageModalImg.alt = file.name || "";
+  ui.imageModalCaption.textContent = file.name || "";
+  ui.imageModal.hidden = false;
+}
+
+function closeImageModal() {
+  if (!ui.imageModal) return;
+  ui.imageModal.hidden = true;
+  ui.imageModalImg.removeAttribute("src");
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && ui.imageModal && !ui.imageModal.hidden) closeImageModal();
+});
+
+async function deleteCurrentPreview() {
+  if (ui.preview._lastImage) await deleteImage(ui.preview._lastImage);
+}
+
+async function deleteImage(fileOrName) {
+  const name = typeof fileOrName === "string" ? fileOrName : fileOrName && fileOrName.name;
+  if (!name) return;
+  if (!confirm(`确认删除图片“${name}”？\n\n这会同时删除电脑上的真实 PNG 文件，且无法恢复。`)) return;
+  try {
+    const r = await fetch("/api/outputs/" + encodeURIComponent(name), {method: "DELETE"});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || `HTTP ${r.status}`);
+    compareSlots = compareSlots.map(slot => slot === name ? null : slot);
+    comparing = false;
+    refreshAbBar();
+    refreshCompareBtn();
+    const wasPreview = ui.preview._lastImage && ui.preview._lastImage.name === name;
+    if (wasPreview) ui.preview._lastImage = null;
+    await refreshGallery();
+    if (wasPreview) showPreviewPaneSingle();
+    toast(`已删除 ${name}（${(j.deleted || []).length} 个真实文件）`, "success");
+  } catch (e) {
+    toast("删除失败: " + e.message, "error");
+  }
+}
+
+// --- A/B compare state ---
+let compareSlots = [null, null]; // [filenameA, filenameB]
+let comparing = false;
+
+async function addToCompare(filename) {
+  // If already in a slot, remove it
+  for (let i = 0; i < 2; i++) {
+    if (compareSlots[i] === filename) {
+      compareSlots[i] = null;
+      refreshAbBar();
+      refreshCompareBtn();
+      toast("已从对比槽移除", "success");
+      return;
+    }
+  }
+  // Find first empty slot
+  const empty = compareSlots.findIndex(s => s === null);
+  if (empty === -1) {
+    // Replace slot B (FIFO behavior)
+    compareSlots[1] = compareSlots[0];
+    compareSlots[0] = filename;
+    toast("对比槽已满，替换了 A", "success");
+  } else {
+    compareSlots[empty] = filename;
+  }
+  refreshAbBar();
+  refreshCompareBtn();
+  if (compareSlots[0] && compareSlots[1]) {
+    comparing = true;
+    showCompareView();
+  }
+  toast("已加入对比槽 " + (empty === 0 ? "A" : "B") + " (" + filename + ")", "success");
+}
+
+function refreshAbBar() {
+  const bar = $("abBar");
+  if (!bar) return;
+  bar.innerHTML = "";
+  for (let i = 0; i < 2; i++) {
+    const slot = document.createElement("div");
+    slot.className = "compare-slot" + (compareSlots[i] ? " filled" : "");
+    slot.textContent = compareSlots[i] ? (i === 0 ? "A" : "B") + " · " + compareSlots[i] : (i === 0 ? "A (空)" : "B (空)");
+    if (compareSlots[i]) {
+      const fn = document.createElement("div");
+      fn.className = "filename";
+      fn.textContent = compareSlots[i];
+      slot.appendChild(fn);
+    }
+    bar.appendChild(slot);
+  }
+  const swapBtn = document.createElement("button");
+  swapBtn.textContent = "↔ 交换";
+  swapBtn.disabled = !(compareSlots[0] && compareSlots[1]);
+  swapBtn.onclick = () => { if (compareSlots[0] && compareSlots[1]) { compareSlots = [compareSlots[1], compareSlots[0]]; refreshAbBar(); if (comparing) showCompareView(); } };
+  bar.appendChild(swapBtn);
+  const clearBtn = document.createElement("button");
+  clearBtn.textContent = "清空";
+  clearBtn.disabled = !compareSlots[0] && !compareSlots[1];
+  clearBtn.onclick = () => { compareSlots = [null, null]; comparing = false; refreshAbBar(); refreshCompareBtn(); showPreviewPaneSingle(); };
+  bar.appendChild(clearBtn);
+  const startBtn = document.createElement("button");
+  startBtn.textContent = comparing ? "退出对比" : "开始对比";
+  startBtn.style.background = comparing ? "var(--err)" : "var(--accent-2)";
+  startBtn.style.color = "#061226";
+  startBtn.style.fontWeight = "600";
+  startBtn.disabled = !(compareSlots[0] && compareSlots[1]);
+  startBtn.onclick = () => {
+    if (comparing) { comparing = false; showPreviewPaneSingle(); }
+    else if (compareSlots[0] && compareSlots[1]) { comparing = true; showCompareView(); }
+  };
+  bar.appendChild(startBtn);
+}
+
+function refreshCompareBtn() {
+  document.querySelectorAll(".thumb .ab-btn").forEach(b => {
+    const fname = b.getAttribute("data-filename") || (b.getAttribute("onclick") || "").match(/'([^']+)'/)?.[1];
+    if (compareSlots.includes(fname)) b.classList.add("added");
+    else b.classList.remove("added");
+  });
+}
+
+async function fetchImageMeta(filename) {
+  // Fetch PNG and read tEXt/iTXt chunks (for AB metadata display)
+  try {
+    const url = "/api/outputs/" + encodeURIComponent(filename);
+    const r = await fetch(url);
+    if (!r.ok) return {};
+    const blob = await r.blob();
+    const arr = new Uint8Array(await blob.arrayBuffer());
+    return parsePngTextMetadata(arr);
+  } catch (e) {
+    return {};
+  }
+}
+
+async function showCompareView() {
+  const [fnA, fnB] = compareSlots;
+  if (!fnA || !fnB) return;
+  const urlA = "/api/outputs/" + encodeURIComponent(fnA);
+  const urlB = "/api/outputs/" + encodeURIComponent(fnB);
+  const metaA = await fetchImageMeta(fnA);
+  const metaB = await fetchImageMeta(fnB);
+  ui.preview.className = "preview-pane compare-view";
+  ui.preview.innerHTML = `
+    <div class="ab-side">
+      <div style="color: var(--accent-2); font-weight: 600; padding: 4px;">A · ${fnA}</div>
+      <img src="${urlA}" alt="">
+      <div class="ab-meta">
+${Object.entries(metaA).filter(([k]) => k !== "prompt" || true).slice(0, 8).map(([k, v]) => `<div><b>${k}:</b> ${String(v).slice(0, 80)}</div>`).join("")}
+      </div>
+    </div>
+    <div class="ab-side">
+      <div style="color: var(--accent-2); font-weight: 600; padding: 4px;">B · ${fnB}</div>
+      <img src="${urlB}" alt="">
+      <div class="ab-meta">
+${Object.entries(metaB).slice(0, 8).map(([k, v]) => `<div><b>${k}:</b> ${String(v).slice(0, 80)}</div>`).join("")}
+      </div>
+    </div>`;
+}
+
+function showPreviewPaneSingle() {
+  ui.preview.className = "preview-pane";
+  // Re-render current preview
+  if (ui.preview._lastImage) {
+    showPreview(ui.preview._lastImage);
+  } else {
+    ui.preview.innerHTML = '<div class="empty">选择图片查看</div>';
+  }
+}
+
+
+let activeJobId = null;
+let cancelRequested = false;
+
+function setGenerating(b, label) {
+  generating = b;
+  ui.genBtn.disabled = b;
+  const generatingText = String.fromCodePoint(0x23f3, 0x20, 0x751f, 0x6210, 0x4e2d, 0x2026);
+  const readyText = String.fromCodePoint(0x1f3a8, 0x20, 0x751f, 0x6210, 0x56fe, 0x7247);
+  ui.genBtn.textContent = b ? generatingText : readyText;
+  if (ui.cancelBtn) ui.cancelBtn.style.display = b ? "inline-block" : "none";
+  ui.genBar.innerHTML = "";
+  if (b) {
+    const spinner = document.createElement("span");
+    spinner.className = "spinner";
+    ui.genBar.appendChild(spinner);
+    const text = document.createElement("span");
+    text.textContent = decodeHtmlEntities(label || "提交到 ComfyUI…");
+    ui.genBar.appendChild(text);
+  }
+}
+
+function decodeHtmlEntities(value) {
+  const raw = String(value ?? "");
+  if (!raw.includes("&#")) return raw;
+  const el = document.createElement("textarea");
+  el.innerHTML = raw;
+  return el.value;
+}
+
+async function waitForJob(jobId, batchIndex, batchTotal) {
+  activeJobId = jobId;
+  while (true) {
+    const r = await fetch("/api/jobs/" + encodeURIComponent(jobId), {cache: "no-store"});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+    const pct = Number.isFinite(j.progress) ? j.progress : 0;
+    setGenerating(true, (j.message || "处理中…") + " (第 " + batchIndex + "/" + batchTotal + ", " + pct + "%)");
+    if (j.status === "completed") return j.result || {};
+    if (j.status === "failed") {
+      const detail = j.validation && j.validation.errors ? "\n" + j.validation.errors.join("\n") : "";
+      throw new Error((j.error || "生成失败") + detail);
+    }
+    if (j.status === "cancelled") throw new Error("已取消");
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+}
+
+async function cancelActiveJob() {
+  if (!activeJobId) return;
+  cancelRequested = true;
+  try {
+    await fetch("/api/jobs/" + encodeURIComponent(activeJobId) + "/cancel", {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"
+    });
+    setGenerating(true, "正在取消当前任务…");
+  } catch (e) {
+    toast("取消失败: " + e.message, "error");
+  }
+}
+
+async function generate() {
+  if (generating) return;
+  cancelRequested = false;
+  setGenerating(true, "检查 ComfyUI…");
+  try {
+    const sr = await fetch("/api/status");
+    const sj = await sr.json();
+    if (!sj.ok) {
+      setGenerating(true, "正在启动 ComfyUI…");
+      const start = await fetch("/api/comfyui-start", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: "{}",
+      });
+      const started = await start.json();
+      if (!start.ok || !started.ok) {
+        throw new Error(started.error || ("HTTP " + start.status));
+      }
+    }
+  } catch (e) {
+    toast("ComfyUI 未就绪: " + e.message, "error");
+    setGenerating(false);
+    await checkStatus();
+    return;
+  }
+  setGenerating(true, "提交到 ComfyUI…");
+  // Build LoRA data from dynamic slots (up to 6)
+  const loraData = {1: {name: "none", weight: 0}, 2: {name: "none", weight: 0}, 3: {name: "none", weight: 0}, 4: {name: "none", weight: 0}, 5: {name: "none", weight: 0}, 6: {name: "none", weight: 0}};
+  for (let i = 0; i < loraSlotCount; i++) {
+    const sel = document.getElementById("loraSel" + i);
+    const wt = document.getElementById("loraWt" + i);
+    if (sel && wt) loraData[i+1] = { name: sel.value || "none", weight: parseFloat(wt.value) || 0 };
+  }
+  const batch = parseInt(ui.batchSize.value) || 1;
+  const seedBase = parseInt(ui.seed.value);
+  const batchPrompt = ui.prompt.value;
+  const usedSeeds = new Set();
+  const allResults = [];
+  const t0 = Date.now();
+  for (let bi = 0; bi < batch; bi++) {
+    if (cancelRequested) break;
+    let thisSeed;
+    if (batch > 1) {
+      do {
+        thisSeed = Math.floor(Math.random() * 1e9);
+      } while (usedSeeds.has(thisSeed));
+      usedSeeds.add(thisSeed);
+    } else {
+      thisSeed = Number.isFinite(seedBase) ? seedBase : Math.floor(Math.random() * 1e9);
+    }
+    setGenerating(true, "等待 ComfyUI 出图 (第 " + (bi+1) + "/" + batch + " 张)..." + " [seed=" + thisSeed + "]");
+    const payload = {
+      prompt: batchPrompt,
+      width: parseInt(ui.width.value),
+      height: parseInt(ui.height.value),
+      steps: parseInt(ui.steps.value),
+      cfg: parseFloat(ui.cfg.value),
+      sampler_name: ui.sampler.value,
+      scheduler: ui.scheduler.value,
+      seed: thisSeed,
+      negative: ui.negative.value,
+      filename_prefix: ui.prefix.value + (batch > 1 ? ("_b" + (bi+1)) : ""),
+      lora1_name: loraData[1].name, lora1_strength: loraData[1].weight,
+      lora2_name: loraData[2].name, lora2_strength: loraData[2].weight,
+      lora3_name: loraData[3].name, lora3_strength: loraData[3].weight,
+      lora4_name: loraData[4].name, lora4_strength: loraData[4].weight,
+      lora5_name: loraData[5].name, lora5_strength: loraData[5].weight,
+      lora6_name: loraData[6].name, lora6_strength: loraData[6].weight,
+      teacache_thresh: parseFloat(ui.teacache.value),
+      model_id: ui.model ? ui.model.value : "",
+      request_id: (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : ("req-" + Date.now() + "-" + bi),
+    };
+    try {
+      const r = await fetch("/api/generate", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j.error || ("HTTP " + r.status));
+      const result = await waitForJob(j.job_id, bi + 1, batch);
+      if (result.saved && result.saved.length) {
+        const ok = result.saved.filter(x => x.filename);
+        ok.forEach(o => allResults.push({...o, seed: thisSeed}));
+      }
+    } catch (e) {
+      toast("第 " + (bi+1) + " 张失败: " + e.message, "error");
+      if (cancelRequested || e.message === "已取消") break;
+    }
+    activeJobId = null;
+  }
+  if (allResults.length === 0) {
+    toast(cancelRequested ? "已取消生成" : "全部失败", cancelRequested ? "success" : "error");
+    setGenerating(false);
+    return;
+  }
+  showPreview({name: allResults[0].filename, size: allResults[0].size, mtime: Math.floor(Date.now()/1000), url: allResults[0].url});
+  await refreshGallery();
+  const dt = ((Date.now() - t0) / 1000).toFixed(1);
+  toast("完成 " + allResults.length + "/" + batch + " 张 (" + dt + "s)", "success");
+  activeJobId = null;
+  setGenerating(false);
+}
+(async function init() {
+  ui.prompt.value = "";
+  await checkStatus();
+  await loadModels();
+  await loadPresets();
+  await refreshGallery();
+  refreshAbBar();
+  setInterval(checkStatus, 10000);
+})();
+
+
+// --- Tooltip toggling (click ? to show/hide) ---
+document.querySelectorAll('.help').forEach(h => {
+  h.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const tip = h.parentElement.querySelector('.tooltip');
+    const wasActive = h.classList.contains('active');
+    document.querySelectorAll('.help.active').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tooltip.visible').forEach(x => x.classList.remove('visible'));
+    if (!wasActive && tip) {
+      h.classList.add('active');
+      tip.classList.add('visible');
+    }
+  });
+});
+document.addEventListener('click', () => {
+  document.querySelectorAll('.help.active').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.tooltip.visible').forEach(x => x.classList.remove('visible'));
+});
+
+// --- Translate prompt (CN -> EN via MyMemory) ---
+async function translatePrompt() {
+  const btn = document.getElementById('translateBtn');
+  const orig = ui.prompt.value.trim();
+  if (!orig) { toast('提示词是空的，没东西可翻译', 'error'); return; }
+  if (/^[\x00-\x7F\s\.,\!\?\'\"\-]+$/.test(orig)) {
+    toast('已经是英文（或纯 ASCII），不用翻译', 'success'); return;
+  }
+  const oldText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ 翻译中…';
+  try {
+    const r = await fetch('/api/translate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: orig}),
+    });
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.error || ('HTTP ' + r.status));
+    const translated = (j.translated || '').trim();
+    if (translated && translated !== orig) {
+      const ok = confirm('翻译结果会替换当前提示词。\n\n原文:\n' + orig.slice(0, 100) + (orig.length > 100 ? '…' : '') + '\n\n译文:\n' + translated.slice(0, 100) + (translated.length > 100 ? '…' : '') + '\n\n点确定替换，点取消保留原文。');
+      if (ok) {
+        ui.prompt.value = translated;
+        toast('已翻译为英文', 'success');
+      } else {
+        toast('已取消，保留原文', 'success');
+      }
+    } else {
+      toast('翻译失败或结果为空', 'error');
+    }
+  } catch (e) {
+    toast('翻译失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = oldText;
+  }
+}
+
+const PROMPT_DICE_SUFFIXES = [
+  "胶片纹理，真实感，35毫米电影，在 Arri Alexa 上拍摄",
+  "细腻的胶片颗粒，柔和高光，电影级肤色，浅景深",
+  "真实摄影质感，50毫米定焦镜头，自然景深，微妙运动模糊",
+  "Kodak Portra 400 色彩，暖色调，柔和对比度，胶片高光",
+  "电影级布光，轮廓光与柔和补光，空气透视，真实阴影",
+  "ARRI Alexa 35 电影摄影，Cooke 镜头，柔和边缘，细节丰富",
+  "35毫米变形宽银幕镜头，椭圆光斑，轻微镜头耀斑，电影构图",
+  "自然光摄影，窗边漫射光，真实肤质，低饱和电影色彩",
+  "蓝绿色阴影与琥珀色高光，细腻颗粒，现代电影调色",
+  "低对比度胶片色彩，柔和黑位，保留高光细节，真实曝光",
+  "纪录片式摄影，手持镜头感，现场光线，未经修饰的真实细节",
+  "黄金时刻侧逆光，温暖边缘光，柔和阴影，通透空气感",
+  "夜景霓虹反射，湿润路面，浅景深，电影级光晕",
+  "老式 35mm 胶片，轻微褪色，细微划痕，复古电影氛围",
+  "高端时尚杂志摄影，精确轮廓光，真实材质，克制的电影色调",
+  "IMAX 电影质感，清晰但不过度锐化，丰富暗部层次，真实空间感"
+];
+
+function rollPromptStyle() {
+  const current = ui.prompt.value.trim();
+  const available = PROMPT_DICE_SUFFIXES.filter(suffix => !current.includes(suffix));
+  if (!available.length) {
+    toast("所有电影质感短语都已追加过了", "success");
+    return;
+  }
+  const suffix = available[Math.floor(Math.random() * available.length)];
+  const base = current.replace(/\s+$/, "");
+  const separator = !base ? "" : /[，,、；;。.!！?？]$/.test(base) ? "" : "，";
+  ui.prompt.value = base + separator + suffix;
+  ui.prompt.focus();
+  toast("已追加随机电影质感提示词", "success");
+}
+
+</script>
+</body>
+</html>

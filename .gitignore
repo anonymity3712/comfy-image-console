@@ -1,0 +1,10 @@
+__pycache__/
+*.log
+*.pyc
+lora_scan_cache.json
+outputs/*
+!outputs/.gitkeep
+prompts/*
+!prompts/.gitkeep
+static/*
+!static/.gitkeep

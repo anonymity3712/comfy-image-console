@@ -1,0 +1,140 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_4b_fp8_mixed.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    }
+  },
+  "1a": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": ["1", 0],
+      "clip": ["2", 0],
+      "lora_name": "lora.safetensors",
+      "strength_model": 0.0,
+      "strength_clip": 0.0
+    }
+  },
+  "1b": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": ["1", 0],
+      "clip": ["2", 0],
+      "lora_name": "lora.safetensors",
+      "strength_model": 0.0,
+      "strength_clip": 0.0
+    }
+  },
+  "1c": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": ["1", 0],
+      "clip": ["2", 0],
+      "lora_name": "lora.safetensors",
+      "strength_model": 0.0,
+      "strength_clip": 0.0
+    }
+  },
+  "1d": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": ["1", 0],
+      "clip": ["2", 0],
+      "lora_name": "lora.safetensors",
+      "strength_model": 0.0,
+      "strength_clip": 0.0
+    }
+  },
+  "1e": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": ["1", 0],
+      "clip": ["2", 0],
+      "lora_name": "lora.safetensors",
+      "strength_model": 0.0,
+      "strength_clip": 0.0
+    }
+  },
+  "1f": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": ["1", 0],
+      "clip": ["2", 0],
+      "lora_name": "lora.safetensors",
+      "strength_model": 0.0,
+      "strength_clip": 0.0
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["2", 0],
+      "text": "a young woman in elegant purple hanfu with gold embroidery, three-quarter view, looking over shoulder, traditional Chinese chamber, lantern light, photorealistic, 35mm cinematic, shot on Arri Alexa"
+    }
+  },
+  "4n": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": ["4", 0]
+    }
+  },
+  "5": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "5a": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "shift": 3.0,
+      "model": ["1", 0]
+    }
+  },
+  "6": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["5a", 0],
+      "seed": 88888,
+      "steps": 8,
+      "cfg": 1.0,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "positive": ["4", 0],
+      "negative": ["4n", 0],
+      "latent_image": ["5", 0],
+      "denoise": 1.0
+    }
+  },
+  "7": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["6", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "8": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "z-image-turbo",
+      "images": ["7", 0]
+    }
+  }
+}

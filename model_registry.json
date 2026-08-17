@@ -1,0 +1,79 @@
+{
+  "models": [
+    {
+      "id": "z_image_turbo",
+      "name": "Z-Image Turbo (BF16)",
+      "unet": "z_image_turbo_bf16.safetensors",
+      "clip_name1": "qwen_3_4b_fp8_mixed.safetensors",
+      "clip_name2": null,
+      "clip_type": "lumina2",
+      "vae": "ae.safetensors",
+      "weight_dtype": "default",
+      "workflow": "workflow_zimage.json",
+      "default_settings": {
+        "steps": 8,
+        "cfg": 1.0,
+        "sampler": "res_multistep",
+        "scheduler": "simple"
+      },
+      "default_loras": [],
+      "max_loras": 6
+    },
+    {
+      "id": "flux1-dev",
+      "name": "Flux.1-dev (GGUF Q6_K)",
+      "unet": "flux1-dev-Q6_K.gguf",
+      "clip_name1": "t5xxl_fp8_e4m3fn.safetensors",
+      "clip_name2": "clip_l.safetensors",
+      "clip_type": "flux",
+      "vae": "ae.safetensors",
+      "weight_dtype": "default",
+      "workflow": "workflow_flux.json",
+      "default_settings": {
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple"
+      },
+      "default_loras": [
+        {
+          "slot": 1,
+          "name": "lora.safetensors",
+          "weight": 0.55
+        },
+        {
+          "slot": 2,
+          "name": "FLUX-dev-lora-add_details.safetensors",
+          "weight": 0.7
+        },
+        {
+          "slot": 3,
+          "name": "cinematic-octane.safetensors",
+          "weight": 0.6
+        }
+      ],
+      "max_loras": 3
+    }
+  ],
+  "lora_overrides": {
+    "Asian-beauty-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": "z_image_turbo",
+    "StarFace1.0-Z-Image-Turbo.safetensors": "z_image_turbo",
+    "Turbomeinv38_10.safetensors": "z_image_turbo",
+    "Zmeinv_10.safetensors": "z_image_turbo",
+    "krea2-Cc风情万种-人像.safetensors": "unknown",
+    "lingyuxiu-MXJ-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": "z_image_turbo",
+    "meixiong-niannian-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": "z_image_turbo",
+    "niannian2-meinv-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": "z_image_turbo",
+    "qingxin-yujie-Z-Image-Turbo-v1.0_20.safetensors": "z_image_turbo",
+    "ruanqing-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": "z_image_turbo",
+    "tunkong_c1-st5000.safetensors": "z_image_turbo",
+    "xiaomanyao-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": "z_image_turbo",
+    "xiaozhengyi-cosplay-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": "z_image_turbo",
+    "yisibugua_20.safetensors": "z_image_turbo",
+    "zishiz_c1-st9000.safetensors": "z_image_turbo",
+    "zubu-youhua-Z-Image-Turbo-v1.0_c1-st8000.safetensors": "z_image_turbo",
+    "lora.safetensors": "flux1-dev",
+    "cinematic-octane.safetensors": "flux1-dev",
+    "FLUX-dev-lora-add_details.safetensors": "flux1-dev"
+  }
+}

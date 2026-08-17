@@ -1,0 +1,121 @@
+{
+  "FLUX-dev-lora-add_details.safetensors": {
+    "chinese_name": "Shakker 添加细节",
+    "chinese_short": "Shakker细节",
+    "source": "manual",
+    "description": "Shakker FLUX Add Details LoRA"
+  },
+  "cinematic-octane.safetensors": {
+    "chinese_name": "AixonLab 电影色调",
+    "chinese_short": "电影色调",
+    "source": "manual",
+    "description": "AixonLab Cinematic Octane for Flux"
+  },
+  "lora.safetensors": {
+    "chinese_name": "XLabs 写实 LoRA",
+    "chinese_short": "XLabs写实",
+    "source": "manual",
+    "description": "XLabs AI RealismLora for Flux.1-dev"
+  },
+  "Asian-beauty-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": {
+    "chinese_name": "亚洲美女-造相Z-Turbo",
+    "repoId": "laonansheng/Asian-beauty-Z-Image-Turbo-Tongyi-MAI-v1.0",
+    "source": "modelscope",
+    "chinese_short": "亚洲美女-造相Z-Tur"
+  },
+  "StarFace1.0-Z-Image-Turbo.safetensors": {
+    "chinese_name": "Starface1.1面部",
+    "chinese_short": "Starface面部",
+    "source": "manual",
+    "repoId": "wuji139/Starface0.3",
+    "description": "Starface face LoRA, trained for portrait face optimization"
+  },
+  "Turbomeinv38_10.safetensors": {
+    "chinese_name": "Turbo38.战袍美人",
+    "repoId": "Suannaipaofu/Turbomeinv38",
+    "source": "modelscope",
+    "chinese_short": "Turbo38.战袍美人"
+  },
+  "Zmeinv_10.safetensors": {
+    "chinese_name": "Z-image超精致女性写实摄影",
+    "repoId": "zyyy163/Zmeinv",
+    "source": "modelscope",
+    "chinese_short": "Z-image超精致女性"
+  },
+  "krea2-Cc风情万种-人像.safetensors": {
+    "chinese_name": null,
+    "source": "no_repoId"
+  },
+  "lingyuxiu-MXJ-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": {
+    "chinese_name": "灵毓秀-牧神-造相Z-Turbo",
+    "repoId": "laonansheng/lingyuxiu-MXJ-Z-Image-Turbo-Tongyi-MAI-v1.0",
+    "source": "modelscope",
+    "chinese_short": "灵毓秀-牧神-造相Z-T"
+  },
+  "meixiong-niannian-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": {
+    "chinese_name": "美胸-年美-造相Z-Turbo",
+    "repoId": "laonansheng/meixiong-niannian-Z-Image-Turbo-Tongyi-MAI-v1.0",
+    "source": "modelscope",
+    "chinese_short": "美胸-年美-造相Z-Tu"
+  },
+  "niannian2-meinv-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": {
+    "chinese_name": "美女又年年-造相Z-Turbo",
+    "repoId": "laonansheng/niannian2-meinv-Z-Image-Turbo-Tongyi-MAI-v1.0",
+    "source": "modelscope",
+    "chinese_short": "美女又年年-造相Z-Tu"
+  },
+  "qingxin-yujie-Z-Image-Turbo-v1.0_20.safetensors": {
+    "chinese_name": "清新御姐-造相Z-Image-Turbo",
+    "repoId": "laonansheng/qingxin-yujie-Z-Image-Turbo-v1.0",
+    "source": "modelscope",
+    "chinese_short": "清新御姐-造相Z-Ima"
+  },
+  "ruanqing-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": {
+    "chinese_name": "软情-造相Z-Turbo",
+    "repoId": "laonansheng/ruanqing-Z-Image-Turbo-Tongyi-MAI-v1.0",
+    "source": "modelscope",
+    "chinese_short": "软情-造相Z-Turbo"
+  },
+  "tunkong_c1-st5000.safetensors": {
+    "chinese_name": "臀控",
+    "repoId": "z1596407/tunkong",
+    "source": "modelscope",
+    "chinese_short": "臀控"
+  },
+  "xiaomanyao-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": {
+    "chinese_name": "小蛮腰-造相Z-Turbo",
+    "repoId": "laonansheng/xiaomanyao-Z-Image-Turbo-Tongyi-MAI-v1.0",
+    "source": "modelscope",
+    "chinese_short": "小蛮腰-造相Z-Turb"
+  },
+  "xiaozhengyi-cosplay-Z-Image-Turbo-Tongyi-MAI-v1.0_20.safetensors": {
+    "chinese_name": "小正义-角色扮演-造相-Z-Turbo",
+    "repoId": "laonansheng/xiaozhengyi-cosplay-Z-Image-Turbo-Tongyi-MAI-v1.0",
+    "source": "modelscope",
+    "chinese_short": "小正义-角色扮演-造相-"
+  },
+  "yisibugua_20.safetensors": {
+    "chinese_name": "一丝不挂",
+    "repoId": "tutu114/yisibugua",
+    "source": "modelscope",
+    "chinese_short": "一丝不挂"
+  },
+  "zishiz_c1-st9000.safetensors": {
+    "chinese_name": "z-姿势",
+    "repoId": "z1596407/zishiz",
+    "source": "modelscope",
+    "chinese_short": "z-姿势"
+  },
+  "zubu-youhua-Z-Image-Turbo-v1.0_c1-st8000.safetensors": {
+    "chinese_name": "足部优化-造相Z-Image-Turbo",
+    "repoId": "laonansheng/zubu-youhua-Z-Image-Turbo-v1.0",
+    "source": "modelscope",
+    "chinese_short": "足部优化-造相Z-Ima"
+  },
+  "krea2-Cc风清万种-人像.safetensors": {
+    "chinese_name": "Krea2 风清万种人像",
+    "chinese_short": "Krea2风清",
+    "source": "manual",
+    "description": "Krea-2-Turbo portrait LoRA (Krea-2 model not installed)"
+  }
+}

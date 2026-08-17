@@ -1,0 +1,223 @@
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "flux1-dev-Q6_K.gguf"
+    }
+  },
+  "2": {
+    "class_type": "DualCLIPLoaderGGUF",
+    "inputs": {
+      "clip_name1": "t5xxl_fp8_e4m3fn.safetensors",
+      "clip_name2": "clip_l.safetensors",
+      "type": "flux"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    }
+  },
+  "1a": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "clip": [
+        "2",
+        0
+      ],
+      "lora_name": "lora.safetensors",
+      "strength_model": 0.55,
+      "strength_clip": 0.55
+    }
+  },
+  "1b": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": [
+        "1a",
+        0
+      ],
+      "clip": [
+        "1a",
+        1
+      ],
+      "lora_name": "FLUX-dev-lora-add_details.safetensors",
+      "strength_model": 0.7,
+      "strength_clip": 0.7
+    }
+  },
+  "1c": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": [
+        "1b",
+        0
+      ],
+      "clip": [
+        "1b",
+        1
+      ],
+      "lora_name": "cinematic-octane.safetensors",
+      "strength_model": 0.6,
+      "strength_clip": 0.6
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "1f",
+        1
+      ],
+      "text": "ancient chinese fashion character, adult female character, luxury hanfu costume, fashion editorial style, full body, character showcase, dramatic cinematic lighting, traditional palace environment, elegant pose, high detail, game character concept art, intricate embroidery, gold thread, silk layers, ornate hairpins, jade accessories, dangling ornaments, palace interior, wooden carved pillars, red lacquer columns, warm rim light from paper lanterns, volumetric haze, full-length portrait, symmetrical features, detailed eyes, shot on Arri Alexa, 35mm cinematic, shallow depth of field, photorealistic, high detail skin texture"
+    }
+  },
+  "4n": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "1f",
+        1
+      ],
+      "text": ""
+    }
+  },
+  "5": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1536,
+      "height": 864,
+      "batch_size": 1
+    }
+  },
+  "6": {
+    "class_type": "ModelSamplingFlux",
+    "inputs": {
+      "model": [
+        "1f",
+        0
+      ],
+      "max_shift": 1.15,
+      "base_shift": 0.5,
+      "width": 1536,
+      "height": 864
+    }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "6",
+        0
+      ],
+      "seed": 7777,
+      "steps": 30,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "4n",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ],
+      "denoise": 1.0
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "7",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "FluxGGUF_v3",
+      "images": [
+        "8",
+        0
+      ]
+    }
+  },
+  "5a": {
+    "class_type": "TeaCache",
+    "inputs": {
+      "model": [
+        "1f",
+        0
+      ],
+      "model_type": "flux",
+      "rel_l1_thresh": 0.2,
+      "start_percent": 0.0,
+      "end_percent": 1.0,
+      "cache_device": "cuda"
+    }
+  },
+  "1d": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": [
+        "1c",
+        0
+      ],
+      "clip": [
+        "1c",
+        1
+      ],
+      "lora_name": "none.safetensors",
+      "strength_model": 0.5,
+      "strength_clip": 0.5
+    }
+  },
+  "1e": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": [
+        "1d",
+        0
+      ],
+      "clip": [
+        "1d",
+        1
+      ],
+      "lora_name": "none.safetensors",
+      "strength_model": 0.5,
+      "strength_clip": 0.5
+    }
+  },
+  "1f": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": [
+        "1e",
+        0
+      ],
+      "clip": [
+        "1e",
+        1
+      ],
+      "lora_name": "none.safetensors",
+      "strength_model": 0.5,
+      "strength_clip": 0.5
+    }
+  }
+}
