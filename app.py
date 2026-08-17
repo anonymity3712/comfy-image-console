@@ -35,6 +35,29 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+
+def _load_local_env():
+    """Load optional KEY=VALUE overrides from .env beside app.py."""
+    env_path = Path(__file__).resolve().parent / ".env"
+    if not env_path.is_file():
+        return
+    try:
+        lines = env_path.read_text(encoding="utf-8-sig").splitlines()
+    except OSError:
+        return
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip().removeprefix("export ")
+        value = value.strip().strip("'").strip('"')
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_local_env()
+
 ROOT = Path(__file__).resolve().parent
 STATIC_DIR = ROOT / "static"
 OUTPUTS_DIR = ROOT / "outputs"
@@ -916,7 +939,7 @@ def _scan_loras(force_rescan=False):
             if fn in seen:
                 continue
             seen.add(fn)
-            full = os.path.join(d, fn)
+            full = os.path.join(str(d), fn)
             try:
                 sz = os.path.getsize(full) / 1024 / 1024
             except OSError:
@@ -924,11 +947,11 @@ def _scan_loras(force_rescan=False):
             base_model, source = _detect_base_model(fn, full)
             result.append({
                 "name": fn,
-                "path": full,
+                "path": str(full),
                 "size_mb": round(sz, 1),
                 "base_model": base_model,
                 "detect_source": source,
-                "source_dir": d,
+                "source_dir": str(d),
             })
 
     # save cache

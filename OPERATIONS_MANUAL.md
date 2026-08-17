@@ -22,6 +22,8 @@
 
 如需让本系统索引 ComfyUI 输出目录、扫描模型目录或自动拉起 ComfyUI，先设置 `COMFYUI_URL`、`COMFYUI_INSTALL_ROOT`、`COMFYUI_INPUT_DIR`、`COMFYUI_OUTPUT_DIR`、`COMFYUI_LORA_DIRS`、`COMFYUI_UNET_DIRS` 等环境变量。具体示例见 `README.md`。
 
+推荐复制 `.env.example` 为 `.env` 并填写本机路径；服务启动时会自动读取，且 `.env` 不进入 Git。
+
 ## 3. 模型注册表
 
 正式模型配置位于 `model_registry.json`。
@@ -75,7 +77,7 @@ LoRA 目录来自 `COMFYUI_LORA_DIRS`，多个目录使用当前系统路径分�
 | 顶部显示 ComfyUI 未运行 | 先启动 ComfyUI；仍失败时查看 ComfyUI 控制台 |
 | 自动启动失败 | 核对 `COMFYUI_INSTALL_ROOT` 是否指向包含 `ComfyUI/main.py` 的安装根目录 |
 | 历史缺少 ComfyUI 输出 | 核对 `COMFYUI_OUTPUT_DIR` 是否存在且可读 |
-| LoRA 列表为空 | 核对 `COMFYUI_LORA_DIRS`，点击“扫描 LoRA” |
+| LoRA 列表为空 | 核对 `.env` 或 `COMFYUI_LORA_DIRS`，点击“扫描 LoRA” |
 | 生成超时 | 默认单任务 900 秒；检查 GPU、显存和 ComfyUI 队列 |
 | 模型或 LoRA 找不到 | 核对注册表文件名和实际模型目录 |
 | 工作流校验失败 | 检查导出的 JSON 是否为 API 格式，且包含必需节点 |

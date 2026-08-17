@@ -44,6 +44,8 @@ python -m pip install -r requirements-optional.txt
 The web service stores prompts and local copies of generated images beside
 `app.py`. Paths to your ComfyUI installation and model directories are read
 from environment variables, so no machine-specific paths are stored in source.
+For repeated local use, copy `.env.example` to `.env`, edit the values, and start
+the service normally; `.env` is ignored by Git.
 
 On Windows PowerShell:
 
