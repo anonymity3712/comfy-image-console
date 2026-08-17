@@ -315,7 +315,7 @@ button.danger { color: var(--err); }
       <textarea id="negative" placeholder="可选；留空时使用工作流默认负面条件" style="min-height: 50px;"></textarea>
     </div>
 
-    <div class="group" id="teacacheGroup">
+    <div class="group">
       <h3>尺寸 (Dimensions)</h3>
       <div class="aspect-pills" id="aspectPills">
         <span class="aspect-pill" data-w="1024" data-h="1024">1024×1024</span>
@@ -384,7 +384,7 @@ button.danger { color: var(--err); }
     </div>
 
 
-    <div class="group">
+    <div class="group" id="teacacheGroup">
       <h3>加速 TeaCache <span class="help" data-tip="teacache">?</span><div class="tooltip" data-for="teacache"><b>TeaCache 加速</b><br>缓存 timestep 接近的中间特征，约提速 1.5–2×，牺牲微小细节差异。<br>调参：0 = 关闭，0.2 = GGUF 量化版推荐（~1.5-2× 加速，几乎无感），0.3 = 略激进（轻度噪点），0.4+ 不推荐（GGUF 量化模型会出马赛克伪影）。<br>建议：默认 0.4 开。速度优先调到 0.6–0.8，质量优先调到 0.2 或 0。<br>加速比：<br>• 0.2 ≈ 1.2× 加速，几乎无视觉差异<br>• 0.4 ≈ 1.5–2× 加速，<br>• 0.8+ ≈ 2.5×+ 加速，可能丢失极细微细节</div></h3>
       <div class="slider-row"><input type="range" id="teacacheR" min="0" max="1.5" step="0.05" value="0.2"><input type="number" id="teacache" value="0.2" step="0.05" min="0" max="5"></div>
     </div>
