@@ -20,7 +20,7 @@
 3. 打开控制台输出的 Web 地址，默认为 `http://127.0.0.1:7860`。
 4. 停止 Web 服务时在控制台按 `Ctrl+C`；ComfyUI 按自己的安装方式退出。
 
-如需让本系统索引 ComfyUI 输出目录、扫描模型目录或自动拉起 ComfyUI，先设置 `COMFYUI_URL`、`COMFYUI_INSTALL_ROOT`、`COMFYUI_INPUT_DIR`、`COMFYUI_OUTPUT_DIR`、`COMFYUI_LORA_DIRS`、`COMFYUI_UNET_DIRS` 等环境变量。具体示例见 `README.md`。
+如需让本系统索引 ComfyUI 输出目录、扫描模型目录或自动拉起 ComfyUI，先设置 `COMFYUI_URL`、`COMFYUI_INSTALL_ROOT`、`COMFYUI_MODEL_PATHS_CONFIG`、`COMFYUI_INPUT_DIR`、`COMFYUI_OUTPUT_DIR`、`COMFYUI_LORA_DIRS`、`COMFYUI_UNET_DIRS` 等环境变量。具体示例见 `README.md`。
 
 推荐复制 `.env.example` 为 `.env` 并填写本机路径；服务启动时会自动读取，且 `.env` 不进入 Git。
 

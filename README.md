@@ -52,6 +52,7 @@ On Windows PowerShell:
 ```powershell
 $env:COMFYUI_URL = "http://127.0.0.1:8188"
 $env:COMFYUI_INSTALL_ROOT = "C:\path\to\comfyui-install"
+$env:COMFYUI_MODEL_PATHS_CONFIG = "C:\Users\your-name\AppData\Roaming\Comfy Desktop\instance-model-paths\instance.yaml"
 $env:COMFYUI_INPUT_DIR = "C:\path\to\comfyui-input"
 $env:COMFYUI_OUTPUT_DIR = "C:\path\to\comfyui-output"
 $env:COMFYUI_LORA_DIRS = "C:\path\to\model-loras"
@@ -63,6 +64,7 @@ On Linux or macOS:
 ```bash
 export COMFYUI_URL="http://127.0.0.1:8188"
 export COMFYUI_INSTALL_ROOT="/path/to/comfyui-install"
+export COMFYUI_MODEL_PATHS_CONFIG="/path/to/instance-model-paths.yaml"
 export COMFYUI_INPUT_DIR="/path/to/comfyui-input"
 export COMFYUI_OUTPUT_DIR="/path/to/comfyui-output"
 export COMFYUI_LORA_DIRS="/path/to/model-loras"

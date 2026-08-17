@@ -324,6 +324,9 @@ class ComfyClient:
 
 
 def _find_instance_model_paths():
+    configured = _env_path("COMFYUI_MODEL_PATHS_CONFIG")
+    if configured:
+        return configured
     appdata = os.environ.get("APPDATA")
     if not appdata:
         return None
