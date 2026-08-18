@@ -2,6 +2,7 @@ __pycache__/
 *.log
 *.pyc
 .env
+settings.json
 lora_scan_cache.json
 outputs/*
 !outputs/.gitkeep

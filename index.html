@@ -283,15 +283,44 @@ button.danger { color: var(--err); }
     <span class="dot" id="statusDot"></span>
     <span id="statusText">connecting…</span>
     <button onclick="rescanLoras()" style="padding: 3px 8px; font-size: 11px;" title="重新扫描 LoRA 目录">🔄 扫描 LoRA</button>
+    <button onclick="toggleSettings()" style="padding: 3px 8px; font-size: 11px;" title="ComfyUI 端口与模型目录设置">⚙ 设置</button>
     <button id="comfyStartBtn" onclick="startComfyUI()" style="padding: 3px 8px; font-size: 11px; display: none;">▶ 启动 ComfyUI</button>
   </div>
 </header>
 
 <main>
   <aside class="left">
+    <details class="group" id="settingsPanel" style="display:none;">
+      <summary style="cursor:pointer; font-weight:600;">系统设置</summary>
+      <h3>ComfyUI 连接</h3>
+      <label>当前地址</label>
+      <input type="text" id="settingComfyUrl" placeholder="http://127.0.0.1:8188">
+      <div class="row" style="margin-top:6px;">
+        <div><label>扫描端口（逗号/分号分隔）</label><input type="text" id="settingDiscoveryPorts" placeholder="8187,8188,8189,8190"></div>
+        <div style="align-self:end;"><button onclick="discoverComfyUI()" style="width:100%;">🔍 扫描端口</button></div>
+      </div>
+      <label style="margin-top:6px;">发现到的 ComfyUI</label>
+      <select id="discoveredComfyList" onchange="chooseDiscoveredComfy()" disabled><option value="">先点击扫描端口</option></select>
+      <label style="display:flex; align-items:center; gap:6px; margin-top:8px;">
+        <input type="checkbox" id="settingAutoStart" style="width:auto;"> 允许系统自动启动 ComfyUI
+      </label>
+      <p style="font-size:11px; color:var(--fg-dim); margin:6px 0 0;">默认关闭。关闭时只连接你手动运行的 ComfyUI。</p>
+
+      <h3 style="margin-top:12px;">手动模型目录</h3>
+      <label>主模型文件夹（每行一个）</label>
+      <textarea id="settingDiffusionDirs" placeholder="D:\path\to\diffusion_models"></textarea>
+      <label style="margin-top:6px;">LoRA 文件夹（每行一个）</label>
+      <textarea id="settingLoraDirs" placeholder="D:\path\to\loras"></textarea>
+      <div class="actions" style="margin-top:8px;">
+        <button onclick="saveSettings()" style="flex:1;">💾 保存并扫描</button>
+      </div>
+    </details>
+
     <div class="group">
-      <h3>主模型 (Model) <span class="help" data-tip="model">?</span><div class="tooltip" data-for="model"><b>主模型选择</b><br>切换 Flux 和 Z-Image Turbo。<br>LoRA 列表会自动过滤，Z-Image 只能选 Z-Image 的 LoRA，Flux 只能选 Flux 的 LoRA。</div></h3>
+      <h3>主模型 (Model) <span class="help" data-tip="model">?</span><div class="tooltip" data-for="model"><b>主模型选择</b><br>第一项选择工作流档案；第二项从你手动配置的主模型文件夹中选择权重文件。</div></h3>
       <select id="model" style="font-weight: 600;" onchange="onModelChange()"></select>
+      <label style="margin-top:6px;">主模型文件（手动目录）</label>
+      <select id="unetFile"></select>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
         <div><label>批量张数 (Batch)</label>
           <input type="number" id="batchSize" value="1" min="1" max="10" step="1" title="批量大于 1 时，每张图片自动使用不同随机种子">
@@ -371,7 +400,7 @@ button.danger { color: var(--err); }
     </div>
 
     <div class="group">
-      <h3>LoRA（按主模型过滤）</h3>
+      <h3>LoRA（手动目录，不过滤）</h3>
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
         <label style="margin: 0; white-space: nowrap;">LoRA 数量:</label>
         <input type="number" id="loraCount" value="3" min="1" max="6" step="1" style="width: 60px;" onchange="onLoraCountChange()">
@@ -452,6 +481,8 @@ button.danger { color: var(--err); }
 const $ = (id) => document.getElementById(id);
 // --- model + LoRA state ---
 let availableModels = [];
+let availableModelFiles = [];
+let appSettings = null;
 let currentModelCfg = null;
 let loraSlotsState = []; // {name, weight} - dynamic length
 let loraSlotCount = 3;
@@ -541,6 +572,8 @@ async function loadModels() {
     const r = await fetch("/api/models");
     const j = await r.json();
     availableModels = j.models || [];
+    availableModelFiles = j.model_files || [];
+    appSettings = j.settings || appSettings;
     const sel = ui.model;
     if (!sel) return;
     sel.innerHTML = availableModels.map(m => `<option value="${m.id}">${m.name}</option>`).join("");
@@ -552,12 +585,29 @@ async function loadModels() {
   } catch (e) { toast("加载模型失败: " + e.message, "error"); }
 }
 
+function renderModelFiles(preferredName) {
+  const sel = ui.unetFile;
+  if (!sel) return;
+  const previous = preferredName || sel.value;
+  sel.innerHTML = availableModelFiles.map(f => {
+    const label = `${f.name} [${Math.round(f.size_mb)}MB]`;
+    return `<option value="${f.name}">${label}</option>`;
+  }).join("");
+  if (!availableModelFiles.length) {
+    sel.innerHTML = `<option value="">未找到主模型，请在设置中配置目录</option>`;
+    return;
+  }
+  const found = availableModelFiles.find(f => f.name === previous);
+  sel.value = found ? found.name : availableModelFiles[0].name;
+}
+
 function onModelChange() {
   const id = ui.model.value;
   currentModelCfg = availableModels.find(m => m.id === id) || null;
   if (!currentModelCfg) return;
-  // reset LoRA slots to defaults from model cfg
-  loraSlotsState = (currentModelCfg.default_loras || []).map(d => ({name: d.name, weight: d.weight}));
+  // Manual directory mode: every scanned LoRA remains selectable.
+  loraSlotsState = [];
+  renderModelFiles(currentModelCfg.unet || "");
   // Cap slot count by model max_loras
   const maxSlots = getMaxLoraSlots();
   if (loraSlotCount > maxSlots) loraSlotCount = maxSlots;
@@ -586,6 +636,86 @@ async function rescanLoras() {
     toast("扫描完成: " + j.count + " 个 LoRA", "success");
     await loadModels();
   } catch (e) { toast("扫描失败: " + e.message, "error"); }
+}
+
+function toggleSettings() {
+  const panel = $("settingsPanel");
+  if (!panel) return;
+  const visible = panel.style.display !== "none";
+  panel.style.display = visible ? "none" : "block";
+  panel.open = !visible;
+  if (!visible) loadSettings();
+}
+
+async function loadSettings() {
+  try {
+    const r = await fetch("/api/settings");
+    const j = await r.json();
+    appSettings = j.settings;
+    $("settingComfyUrl").value = appSettings.comfyui_url || "";
+    $("settingDiscoveryPorts").value = (appSettings.discovery_ports || []).join(",");
+    $("settingAutoStart").checked = !!appSettings.auto_start;
+    $("settingDiffusionDirs").value = (appSettings.diffusion_dirs || []).join("\n");
+    $("settingLoraDirs").value = (appSettings.lora_dirs || []).join("\n");
+  } catch (e) {
+    toast("读取设置失败: " + e.message, "error");
+  }
+}
+
+async function discoverComfyUI() {
+  const list = $("discoveredComfyList");
+  list.disabled = true;
+  list.innerHTML = `<option value="">扫描中…</option>`;
+  try {
+    const r = await fetch("/api/comfyui/discover");
+    const j = await r.json();
+    const items = j.instances || [];
+    if (!items.length) {
+      list.innerHTML = `<option value="">未发现 ComfyUI</option>`;
+      toast("未发现正在运行的 ComfyUI，请先手动启动", "error");
+      return;
+    }
+    list.innerHTML = items.map(x => {
+      const label = `${x.url} · ${x.device || "unknown"} · queue ${x.queue_running}/${x.queue_pending}`;
+      return `<option value="${x.url}">${label}</option>`;
+    }).join("");
+    list.disabled = false;
+    $("settingComfyUrl").value = items[0].url;
+    toast(`发现 ${items.length} 个 ComfyUI`, "success");
+  } catch (e) {
+    list.innerHTML = `<option value="">扫描失败</option>`;
+    toast("端口扫描失败: " + e.message, "error");
+  }
+}
+
+function chooseDiscoveredComfy() {
+  const value = $("discoveredComfyList").value;
+  if (value) $("settingComfyUrl").value = value;
+}
+
+async function saveSettings() {
+  const payload = {
+    comfyui_url: $("settingComfyUrl").value.trim(),
+    discovery_ports: $("settingDiscoveryPorts").value,
+    auto_start: $("settingAutoStart").checked,
+    diffusion_dirs: $("settingDiffusionDirs").value,
+    lora_dirs: $("settingLoraDirs").value,
+  };
+  try {
+    const r = await fetch("/api/settings", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.error || ("HTTP " + r.status));
+    appSettings = j.settings;
+    await loadModels();
+    await checkStatus();
+    toast("设置已保存并重新扫描", "success");
+  } catch (e) {
+    toast("保存设置失败: " + e.message, "error");
+  }
 }
 
 function parsePngTextMetadata(arr) {
@@ -715,6 +845,7 @@ async function restoreFromImage(filename, silent = false) {
 const ui = {
   prompt: $("prompt"), negative: $("negative"),
   model: $("model"), batchSize: $("batchSize"), loraCount: $("loraCount"),
+  unetFile: $("unetFile"),
   width: $("width"), height: $("height"),
   steps: $("steps"), stepsR: $("stepsR"),
   cfg: $("cfg"), cfgR: $("cfgR"),
@@ -815,9 +946,11 @@ async function checkStatus() {
       if (startBtn) startBtn.style.display = "none";
     } else {
       ui.statusDot.className = "dot err";
-      ui.statusText.textContent = "ComfyUI 未运行: " + (j.error || "");
+      ui.statusText.textContent = (appSettings && appSettings.auto_start)
+        ? "ComfyUI 未运行: " + (j.error || "")
+        : "ComfyUI 未运行（手动模式）· 点击 ⚙ 设置扫描端口";
       const startBtn = $("comfyStartBtn");
-      if (startBtn) startBtn.style.display = "inline-block";
+      if (startBtn) startBtn.style.display = (appSettings && appSettings.auto_start) ? "inline-block" : "none";
     }
   } catch (e) {
     ui.statusDot.className = "dot err";
@@ -1359,6 +1492,7 @@ async function generate() {
       lora6_name: loraData[6].name, lora6_strength: loraData[6].weight,
       teacache_thresh: parseFloat(ui.teacache.value),
       model_id: ui.model ? ui.model.value : "",
+      unet_name: ui.unetFile ? ui.unetFile.value : "",
       request_id: (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : ("req-" + Date.now() + "-" + bi),
     };
     try {
@@ -1394,6 +1528,7 @@ async function generate() {
 }
 (async function init() {
   ui.prompt.value = "";
+  await loadSettings();
   await checkStatus();
   await loadModels();
   await loadPresets();

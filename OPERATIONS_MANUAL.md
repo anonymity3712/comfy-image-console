@@ -24,6 +24,8 @@
 
 推荐复制 `.env.example` 为 `.env` 并填写本机路径；服务启动时会自动读取，且 `.env` 不进入 Git。
 
+也可以在页面点击 **⚙ 设置**：手动运行 ComfyUI 后点击“扫描端口”，选择发现的地址；主模型文件夹和 LoRA 文件夹每行一个，保存后立即重新扫描。运行时设置保存在 `settings.json`，不进入 Git。自动启动默认关闭。
+
 ## 3. 模型注册表
 
 正式模型配置位于 `model_registry.json`。
@@ -74,7 +76,7 @@ LoRA 目录来自 `COMFYUI_LORA_DIRS`，多个目录使用当前系统路径分�
 
 | 现象 | 处理 |
 |---|---|
-| 顶部显示 ComfyUI 未运行 | 先启动 ComfyUI；仍失败时查看 ComfyUI 控制台 |
+| 顶部显示 ComfyUI 未运行 | 手动启动 ComfyUI 后在设置中扫描端口并选择地址 |
 | 自动启动失败 | 核对 `COMFYUI_INSTALL_ROOT` 是否指向包含 `ComfyUI/main.py` 的安装根目录 |
 | 历史缺少 ComfyUI 输出 | 核对 `COMFYUI_OUTPUT_DIR` 是否存在且可读 |
 | LoRA 列表为空 | 核对 `.env` 或 `COMFYUI_LORA_DIRS`，点击“扫描 LoRA” |

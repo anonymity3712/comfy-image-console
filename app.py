@@ -59,6 +59,98 @@ def _load_local_env():
 _load_local_env()
 
 ROOT = Path(__file__).resolve().parent
+
+
+def _env_paths(name):
+    """Read an OS path-separator-delimited list of model directories."""
+    value = os.environ.get(name, "").strip()
+    return [Path(part).expanduser() for part in value.split(os.pathsep) if part.strip()]
+
+
+def _env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _parse_ints(value, fallback):
+    if isinstance(value, str):
+        raw_items = value.replace(",", ";").split(";")
+    elif isinstance(value, (list, tuple)):
+        raw_items = value
+    else:
+        return list(fallback)
+    result = []
+    for item in raw_items:
+        try:
+            port = int(str(item).strip())
+        except (TypeError, ValueError):
+            continue
+        if 1 <= port <= 65535 and port not in result:
+            result.append(port)
+    return result or list(fallback)
+
+
+SETTINGS_PATH = ROOT / "settings.json"
+SETTINGS_LOCK = threading.RLock()
+DEFAULT_DISCOVERY_PORTS = tuple(range(8187, 8200))
+_SETTINGS = {
+    "comfyui_url": os.environ.get("COMFYUI_URL", "http://127.0.0.1:8188"),
+    "discovery_ports": _parse_ints(
+        os.environ.get("COMFYUI_DISCOVERY_PORTS"), DEFAULT_DISCOVERY_PORTS
+    ),
+    "auto_start": _env_bool("COMFYUI_AUTO_START", False),
+    "diffusion_dirs": [str(p) for p in _env_paths("COMFYUI_UNET_DIRS")],
+    "lora_dirs": [str(p) for p in _env_paths("COMFYUI_LORA_DIRS")],
+}
+
+
+def _settings():
+    with SETTINGS_LOCK:
+        return copy.deepcopy(_SETTINGS)
+
+
+def _update_settings(changes):
+    allowed = {
+        "comfyui_url", "discovery_ports", "auto_start",
+        "diffusion_dirs", "lora_dirs",
+    }
+    with SETTINGS_LOCK:
+        updated = copy.deepcopy(_SETTINGS)
+        for key in allowed:
+            if key in changes:
+                updated[key] = copy.deepcopy(changes[key])
+        _SETTINGS.update(updated)
+        return copy.deepcopy(_SETTINGS)
+
+
+def _load_settings():
+    global _SETTINGS
+    if not SETTINGS_PATH.is_file():
+        return
+    try:
+        data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"warn: failed to read settings.json: {e}")
+        return
+    if not isinstance(data, dict):
+        return
+    with SETTINGS_LOCK:
+        for key in _SETTINGS:
+            if key in data:
+                _SETTINGS[key] = copy.deepcopy(data[key])
+
+
+def _save_settings():
+    with SETTINGS_LOCK:
+        SETTINGS_PATH.write_text(
+            json.dumps(_SETTINGS, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+
+_load_settings()
 STATIC_DIR = ROOT / "static"
 OUTPUTS_DIR = ROOT / "outputs"
 PROMPTS_DIR = ROOT / "prompts"
@@ -71,12 +163,6 @@ def _env_path(name):
     """Read an optional absolute path from the environment."""
     value = os.environ.get(name, "").strip()
     return Path(value).expanduser() if value else None
-
-
-def _env_paths(name):
-    """Read an OS path-separator-delimited list of model directories."""
-    value = os.environ.get(name, "").strip()
-    return [Path(part).expanduser() for part in value.split(os.pathsep) if part.strip()]
 
 
 COMFYUI_INSTALL_ROOT = _env_path("COMFYUI_INSTALL_ROOT")
@@ -205,9 +291,9 @@ class ComfyClient:
         scheme = parsed.scheme or "http"
         host = parsed.hostname
         configured_port = parsed.port or COMFYUI_DEFAULT_PORT
-        ports = [configured_port]
-        if configured_port == COMFYUI_DEFAULT_PORT:
-            ports.extend(p for p in COMFYUI_DISCOVERY_PORTS if p != configured_port)
+        ports = [configured_port] + [
+            p for p in _settings()["discovery_ports"] if p != configured_port
+        ]
         bases = [f"{scheme}://{host}:{p}" for p in ports]
         if self.base in bases:
             bases.remove(self.base)
@@ -239,7 +325,7 @@ class ComfyClient:
             except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
                 last_error = e
         reason = getattr(last_error, "reason", None) or str(last_error or "unknown error")
-        ports = ", ".join(str(p) for p in COMFYUI_DISCOVERY_PORTS)
+        ports = ", ".join(str(p) for p in _settings()["discovery_ports"])
         raise RuntimeError(f"comfyui_unreachable: {reason}; tried local ports {ports}")
 
     def _post_raw(self, path, payload=None, timeout=30):
@@ -269,7 +355,7 @@ class ComfyClient:
             except (urllib.error.URLError, TimeoutError, OSError) as e:
                 last_error = e
         reason = getattr(last_error, "reason", None) or str(last_error or "unknown error")
-        ports = ", ".join(str(p) for p in COMFYUI_DISCOVERY_PORTS)
+        ports = ", ".join(str(p) for p in _settings()["discovery_ports"])
         raise RuntimeError(f"comfyui_unreachable: {reason}; tried local ports {ports}")
 
     def interrupt(self):
@@ -336,7 +422,7 @@ def _find_instance_model_paths():
 
 
 def _pick_comfyui_port():
-    for port in COMFYUI_DISCOVERY_PORTS:
+    for port in _settings()["discovery_ports"]:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             try:
                 sock.bind(("127.0.0.1", port))
@@ -422,6 +508,102 @@ def _start_local_comfyui(client):
             "port": port,
             "pid": proc.pid,
         }
+
+
+def _probe_comfyui_base(base):
+    """Probe one exact ComfyUI endpoint without falling back to other ports."""
+    try:
+        with urllib.request.urlopen(base.rstrip("/") + "/system_stats", timeout=0.7) as r:
+            stats = json.loads(r.read().decode("utf-8"))
+        with urllib.request.urlopen(base.rstrip("/") + "/queue", timeout=0.7) as r:
+            queue = json.loads(r.read().decode("utf-8"))
+        return {
+            "url": base.rstrip("/"),
+            "ok": True,
+            "device": (stats.get("devices") or [{}])[0].get("name"),
+            "queue_running": len(queue.get("queue_running", [])),
+            "queue_pending": len(queue.get("queue_pending", [])),
+        }
+    except Exception:
+        return None
+
+
+def _discover_comfyui_instances():
+    settings = _settings()
+    parsed = urllib.parse.urlsplit(settings["comfyui_url"])
+    host = parsed.hostname or "127.0.0.1"
+    scheme = parsed.scheme or "http"
+    configured_port = parsed.port or COMFYUI_DEFAULT_PORT
+    ports = [configured_port] + [
+        p for p in settings["discovery_ports"] if p != configured_port
+    ]
+    with ThreadPoolExecutor(max_workers=8, thread_name_prefix="comfy-discovery") as pool:
+        instances = list(
+            filter(
+                None,
+                pool.map(
+                    lambda port: _probe_comfyui_base(f"{scheme}://{host}:{port}"),
+                    dict.fromkeys(ports),
+                ),
+            )
+        )
+    return {"instances": instances, "count": len(instances)}
+
+
+def _normalize_dir_list(value):
+    if isinstance(value, str):
+        raw = value.splitlines()
+    elif isinstance(value, (list, tuple)):
+        raw = value
+    else:
+        raise ValueError("directory setting must be a list or newline-separated text")
+    result = []
+    for item in raw:
+        path = str(item).strip()
+        if not path:
+            continue
+        path = str(Path(path).expanduser())
+        if path not in result:
+            result.append(path)
+    return result
+
+
+def _normalize_settings(changes):
+    if not isinstance(changes, dict):
+        raise ValueError("settings must be an object")
+    normalized = {}
+    if "comfyui_url" in changes:
+        url = str(changes["comfyui_url"]).strip().rstrip("/")
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("comfyui_url must be an http(s) URL")
+        normalized["comfyui_url"] = urllib.parse.urlunsplit(
+            (parsed.scheme, parsed.netloc, "", "", "")
+        )
+    if "discovery_ports" in changes:
+        ports = _parse_ints(changes["discovery_ports"], [])
+        if not ports:
+            raise ValueError("discovery_ports must contain at least one port")
+        normalized["discovery_ports"] = ports
+    if "auto_start" in changes:
+        normalized["auto_start"] = bool(changes["auto_start"])
+    if "diffusion_dirs" in changes:
+        normalized["diffusion_dirs"] = _normalize_dir_list(changes["diffusion_dirs"])
+    if "lora_dirs" in changes:
+        normalized["lora_dirs"] = _normalize_dir_list(changes["lora_dirs"])
+    return normalized
+
+
+def _apply_settings(changes, client):
+    global LORA_DIRS, UNET_DIRS
+    settings = _update_settings(_normalize_settings(changes))
+    _save_settings()
+    with SETTINGS_LOCK:
+        LORA_DIRS = [Path(p) for p in settings["lora_dirs"]]
+        UNET_DIRS = [Path(p) for p in settings["diffusion_dirs"]]
+    client.configured_base = settings["comfyui_url"]
+    client.base = settings["comfyui_url"]
+    return settings
 
 
 # ---------- Workflow builder ------------------------------------------------ #
@@ -770,8 +952,8 @@ def translate_to_en(text):
 
 # Optional model directories. Separate multiple values with the OS path
 # separator (`;` on Windows, `:` on Linux/macOS).
-LORA_DIRS = _env_paths("COMFYUI_LORA_DIRS")
-UNET_DIRS = _env_paths("COMFYUI_UNET_DIRS")
+LORA_DIRS = [Path(p) for p in _settings()["lora_dirs"]]
+UNET_DIRS = [Path(p) for p in _settings()["diffusion_dirs"]]
 
 # Base model detection rules (by filename keyword / metadata)
 # Order matters: more specific first
@@ -891,6 +1073,37 @@ def _save_model_registry(reg):
         json.dump(reg, f, ensure_ascii=False, indent=2)
 
 
+def _scan_model_files():
+    """Scan manually configured diffusion-model folders without model filtering."""
+    result = []
+    seen = set()
+    for directory in UNET_DIRS:
+        path = Path(directory).expanduser()
+        if not path.is_dir():
+            continue
+        try:
+            items = sorted(path.iterdir(), key=lambda p: p.name.lower())
+        except OSError:
+            continue
+        for item in items:
+            if not item.is_file() or item.suffix.lower() not in {".safetensors", ".gguf"}:
+                continue
+            if item.name in seen:
+                continue
+            seen.add(item.name)
+            try:
+                size_mb = item.stat().st_size / 1024 / 1024
+            except OSError:
+                continue
+            result.append({
+                "name": item.name,
+                "path": str(item),
+                "size_mb": round(size_mb, 1),
+                "source_dir": str(path),
+            })
+    return result
+
+
 def _scan_loras(force_rescan=False):
     """Scan LORA_DIRS, return list of dicts with name, path, base_model, size_mb, source_dir."""
     cache_path = ROOT / "lora_scan_cache.json"
@@ -990,7 +1203,13 @@ class JobCancelled(RuntimeError):
 def _prepare_generation(body, client):
     ready = client.status()
     if not ready.get("ok"):
-        ready = _start_local_comfyui(client)
+        if _settings().get("auto_start"):
+            ready = _start_local_comfyui(client)
+        else:
+            raise RuntimeError(
+                "comfyui_manual_mode: ComfyUI is not running. Start it manually, "
+                "then scan and select its port in Settings."
+            )
     if not ready.get("ok"):
         raise RuntimeError(ready.get("error", "ComfyUI is not available"))
 
@@ -1005,6 +1224,9 @@ def _prepare_generation(body, client):
         model_id = model_cfg.get("id", "") if model_cfg else ""
     if model_cfg is None:
         raise RuntimeError("no models configured")
+    manual_unet = str(body.get("unet_name", "")).strip()
+    if manual_unet:
+        model_cfg = {**model_cfg, "unet": manual_unet}
     wf_path = ROOT / model_cfg.get("workflow", "workflow_flux.json")
     if not wf_path.exists():
         raise RuntimeError(f"workflow file not found: {wf_path}")
@@ -1076,6 +1298,8 @@ def _submit_workflow(client, workflow):
         return client.submit(workflow)
     except Exception as e:
         if "comfyui_unreachable" not in str(e):
+            raise
+        if not _settings().get("auto_start"):
             raise
         ready = _start_local_comfyui(client)
         if not ready.get("ok"):
@@ -1310,6 +1534,10 @@ def make_handler(client: ComfyClient):
                 self._send_file(ROOT / path.lstrip("/"), self._ctype(path))
             elif path == "/api/status":
                 self._send_json(client.status())
+            elif path == "/api/settings":
+                self._send_json({"settings": _settings(), "status": client.status()})
+            elif path == "/api/comfyui/discover":
+                self._send_json(_discover_comfyui_instances())
             elif path.startswith("/api/jobs/"):
                 job_id = path[len("/api/jobs/"):].strip("/")
                 if not job_id:
@@ -1346,47 +1574,30 @@ def make_handler(client: ComfyClient):
             elif path == "/api/models":
                 reg = _load_model_registry()
                 all_loras = _scan_loras()
-                loras_by_model = {}
-                seen_per_model = {}
+                lora_options = [{"name": "none", "display": "（无）", "base_model": "none"}]
                 for l in all_loras:
-                    bm = l["base_model"]
-                    seen_per_model.setdefault(bm, set())
-                    if l["name"] not in seen_per_model[bm]:
-                        loras_by_model.setdefault(bm, []).append(l)
-                        seen_per_model[bm].add(l["name"])
-                overrides = reg.get("lora_overrides", {})
-                for lname, lmodel in overrides.items():
-                    for l in all_loras:
-                        if l["name"] == lname:
-                            seen_per_model.setdefault(lmodel, set())
-                            if l["name"] not in seen_per_model[lmodel]:
-                                loras_by_model.setdefault(lmodel, []).append(l)
-                                seen_per_model[lmodel].add(l["name"])
+                    cn = _LORA_CN_NAMES.get(l["name"], {}).get("chinese_short") or _LORA_CN_NAMES.get(l["name"], {}).get("chinese_name") or ""
+                    disp = l["name"]
+                    if cn:
+                        disp = f"{cn} ({l['name']})"
+                    if l.get("size_mb", 0) > 0:
+                        disp += f" [{l.get('size_mb', 0):.0f}MB]"
+                    lora_options.append({
+                        "name": l["name"],
+                        "display": disp,
+                        "chinese_name": _LORA_CN_NAMES.get(l["name"], {}).get("chinese_name", ""),
+                        "chinese_short": cn,
+                        "size_mb": l.get("size_mb", 0),
+                        "base_model": l.get("base_model", ""),
+                    })
                 models_out = []
                 for m in reg.get("models", []):
-                    mid = m["id"]
-                    compatible = loras_by_model.get(mid, [])
-                    lora_options = [{"name": "none", "display": "（无）", "base_model": "none"}]
-                    for l in compatible:
-                        cn = _LORA_CN_NAMES.get(l["name"], {}).get("chinese_short") or _LORA_CN_NAMES.get(l["name"], {}).get("chinese_name") or ""
-                        disp = l["name"]
-                        if cn:
-                            disp = f"{cn} ({l['name']})"
-                        if l.get("size_mb", 0) > 0:
-                            disp += f" [{l.get('size_mb', 0):.0f}MB]"
-                        lora_options.append({
-                            "name": l["name"],
-                            "display": disp,
-                            "chinese_name": _LORA_CN_NAMES.get(l["name"], {}).get("chinese_name", ""),
-                            "chinese_short": cn,
-                            "size_mb": l.get("size_mb", 0),
-                            "base_model": l.get("base_model", mid),
-                        })
                     models_out.append({**m, "compatible_loras": lora_options})
                 self._send_json({
                     "models": models_out,
+                    "model_files": _scan_model_files(),
                     "all_loras": all_loras,
-                    "loras_by_model": {bm: [{"name": l["name"], "size_mb": l["size_mb"], "base_model": l["base_model"]} for l in loras] for bm, loras in loras_by_model.items()},
+                    "settings": _settings(),
                 })
             elif path == "/api/lora-rescan":
                 loras = _scan_loras(force_rescan=True)
@@ -1495,7 +1706,26 @@ def make_handler(client: ComfyClient):
                 self._send_json({"error": str(e)}, status=400)
                 return
 
+            if path == "/api/settings":
+                try:
+                    settings = _apply_settings(body, client)
+                except ValueError as e:
+                    self._send_json({"error": str(e)}, status=400)
+                    return
+                self._send_json({
+                    "ok": True,
+                    "settings": settings,
+                    "status": client.status(),
+                    "model_files": _scan_model_files(),
+                    "loras": _scan_loras(force_rescan=True),
+                })
             if path == "/api/comfyui-start":
+                if not _settings().get("auto_start"):
+                    self._send_json({
+                        "ok": False,
+                        "error": "ComfyUI automatic startup is disabled. Start ComfyUI manually and scan its port in Settings.",
+                    }, status=409)
+                    return
                 status = _start_local_comfyui(client)
                 self._send_json(status, status=200 if status.get("ok") else 503)
             elif path == "/api/generate":
@@ -1610,7 +1840,7 @@ def main():
     parser.add_argument("--port", type=int, default=7860)
     parser.add_argument(
         "--comfyui",
-        default=os.environ.get("COMFYUI_URL", "http://127.0.0.1:8188"),
+        default=_settings()["comfyui_url"],
     )
     parser.add_argument("--host", default="127.0.0.1")
     args = parser.parse_args()

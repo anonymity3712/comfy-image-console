@@ -45,7 +45,10 @@ The web service stores prompts and local copies of generated images beside
 `app.py`. Paths to your ComfyUI installation and model directories are read
 from environment variables, so no machine-specific paths are stored in source.
 For repeated local use, copy `.env.example` to `.env`, edit the values, and start
-the service normally; `.env` is ignored by Git.
+the service normally; `.env` is ignored by Git. Runtime settings can also be
+changed in the web UI: open **Settings** to scan running local ComfyUI ports,
+choose an endpoint, and set the diffusion-model and LoRA folders manually.
+Settings are stored in `settings.json`, which is also ignored by Git.
 
 On Windows PowerShell:
 
@@ -71,9 +74,9 @@ export COMFYUI_LORA_DIRS="/path/to/model-loras"
 export COMFYUI_UNET_DIRS="/path/to/diffusion-models"
 ```
 
-Only `COMFYUI_URL` is commonly required when ComfyUI is already running. The
-other variables enable output indexing, model/LoRA scanning, and automatic
-startup. Multiple model directories use the host path separator.
+Automatic ComfyUI startup is disabled by default. Run ComfyUI yourself, then
+use **Settings → scan ports** to find and select it. Multiple model directories
+can be entered one per line in Settings.
 
 ## Run
 
