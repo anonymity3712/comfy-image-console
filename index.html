@@ -338,6 +338,7 @@ button.danger { color: var(--err); }
         <div style="display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;">
           <button id="translateBtn" onclick="translatePrompt()" style="padding: 6px 10px; white-space: nowrap;" title="把当前提示词（中文/混合）翻译成英文">🌐 翻译</button>
           <button id="promptDiceBtn" onclick="rollPromptStyle()" style="padding: 6px 10px; white-space: nowrap;" title="在 Prompt 末尾随机追加电影质感提示词">🎲 随机</button>
+          <button id="fullPromptDiceBtn" onclick="rollFullPrompt()" style="padding: 6px 10px; white-space: nowrap;" title="随机生成完整古风人像提示词">🎲 完整</button>
         </div>
       </div>
       <label style="margin-top: 6px;">负面提示词 (Negative)</label>
@@ -1614,6 +1615,161 @@ const PROMPT_DICE_SUFFIXES = [
   "高端时尚杂志摄影，精确轮廓光，真实材质，克制的电影色调",
   "IMAX 电影质感，清晰但不过度锐化，丰富暗部层次，真实空间感"
 ];
+
+const PROMPT_DICE_MODULES = {
+  framing: [
+    "构图：中近景人像",
+    "构图：胸部以上特写",
+    "构图：七分身环境人像",
+    "构图：全身古风写真",
+    "构图：半身侧身像",
+    "构图：斜侧中景，人物占据画面三分之一",
+    "构图：肩部以上肖像，目光直视镜头",
+    "构图：室内环境全景，人物清晰完整"
+  ],
+  camera: [
+    "拍摄：索尼A7R5实拍质感",
+    "拍摄：佳能EOS R5实拍质感",
+    "拍摄：尼康Z9实拍质感",
+    "拍摄：富士GFX100S中画幅质感",
+    "拍摄：哈苏X2D中画幅质感",
+    "拍摄：徕卡SL3写实影像",
+    "拍摄：索尼A1高速实拍质感",
+    "拍摄：胶片相机实拍质感"
+  ],
+  lens: [
+    "镜头：85mm f/1.4定焦，浅景深",
+    "镜头：105mm f/1.4定焦，柔和背景压缩",
+    "镜头：135mm f/1.8定焦，极致虚化",
+    "镜头：50mm f/1.2定焦，自然透视",
+    "镜头：35mm f/1.4定焦，环境氛围人像",
+    "镜头：70-200mm f/2.8长焦端，背景柔化",
+    "镜头：90mm f/1.5古典人像镜头",
+    "镜头：80mm中画幅定焦，细腻过渡"
+  ],
+  mood: [
+    "氛围：冷调蓝紫柔光，朦胧光影",
+    "氛围：清冷月白调，薄雾环绕",
+    "氛围：琥珀暖光与青蓝阴影对比",
+    "氛围：低饱和灰蓝电影调色",
+    "氛围：珍珠白高调，柔雾光斑",
+    "氛围：墨绿与鎏金低调古典光",
+    "氛围：樱粉与雾蓝柔和渐变",
+    "氛围：银白冷光，水晶反光清透"
+  ],
+  subject: [
+    "人物：成年东方古风女子，气质温婉清冷",
+    "人物：成年东方古典仕女，神态疏离优雅",
+    "人物：成年古风贵族女子，眉眼清冷",
+    "人物：成年国风舞者，身姿轻盈挺拔",
+    "人物：成年古风乐师，安静含蓄",
+    "人物：成年江湖侠女，眼神坚定"
+  ],
+  makeup: [
+    "妆容：冷白皮，低饱和豆沙红唇，清透底妆",
+    "妆容：眼尾细长，浅棕眼影，珍珠高光",
+    "妆容：眼下细碎珠光，眉形柔长，唇色浅樱",
+    "妆容：淡青眼晕配银白高光，唇色低饱和",
+    "妆容：古典远山眉，薄涂朱砂唇，肌理细腻",
+    "妆容：裸调底妆，眼头细钻，眼下柔光"
+  ],
+  hair: [
+    "发型：乌黑长发精致高盘发，蓝水晶银饰头冠，珍珠流苏垂落",
+    "发型：中分低垂古风发髻，银蝶饰与水滴流苏",
+    "发型：双环髻配蓝牡丹发花，细碎珍珠链",
+    "发型：长发半披，额间银饰，蓝钻发钗",
+    "发型：高马尾配银丝发带，流苏耳坠",
+    "发型：古典编发盘髻，点缀白水晶与银叶"
+  ],
+  outfit: [
+    "服饰：深海蓝透纱广袖汉服，蓝牡丹银线刺绣，多层珍珠项链",
+    "服饰：月白齐胸襦裙，银线云纹，轻纱披帛",
+    "服饰：黛蓝交领长裙，袖口薄纱，银质腰坠",
+    "服饰：烟灰蓝大袖衫，雪色内衬，珍珠压襟",
+    "服饰：青碧古风长裙，银鹤刺绣，纱质外披",
+    "服饰：紫灰魏晋风大袖，银线竹纹，长裙曳地"
+  ],
+  scene: [
+    "场景：古风室内，浅蓝纱幔垂坠，中式木格窗，薄雾氛围",
+    "场景：庭院回廊，雨后石阶，远处纸灯柔光",
+    "场景：水榭屏风后，纱帘轻透，细雾弥漫",
+    "场景：老宅书房，木格影落在纱幔上",
+    "场景：湖边古亭，晨雾未散，水光反射",
+    "场景：夜间宫苑，冷色灯笼与湿润石径"
+  ],
+  action: [
+    "动作：侧身回眸，指尖轻拂身前纱幔，眼神温柔清冷看向镜头",
+    "动作：正面静立，双手轻拢披帛，下颌微收",
+    "动作：缓步行走中回望，流苏自然摆动",
+    "动作：坐于窗边，侧脸向光，指尖轻触耳畔发丝",
+    "动作：执油伞半掩面，随后目光转向镜头",
+    "动作：抬手整理袖口，衣袖轻扬，神态安静"
+  ],
+  details: [
+    "细节：刺绣纹理清晰，水晶宝石高光通透，薄纱朦胧透光",
+    "细节：皮肤质感真实细腻，发丝层次分明，首饰反射柔和",
+    "细节：布料褶皱自然，纱质边缘半透明，光斑层次丰富",
+    "细节：眼妆细碎闪光，唇部纹理真实，脸侧留出柔和高光",
+    "细节：银饰氧化质感真实，珍珠光泽温润，背景虚化干净",
+    "细节：发饰重量感自然，流苏运动轨迹轻微，衣料垂坠真实"
+  ],
+  quality: [
+    "画质：8K超高清，胶片人像质感，纯真人实拍，无二次元手绘",
+    "画质：8K细节，真实摄影颗粒，电影级色彩，非插画",
+    "画质：高分辨率写实摄影，真实材质，无CG感",
+    "画质：8K商业人像，精准肤色还原，非动漫"
+  ]
+};
+
+const PROMPT_DICE_COMBINATIONS = Object.values(PROMPT_DICE_MODULES)
+  .reduce((total, values) => total * values.length, 1);
+const PROMPT_DICE_HISTORY_KEY = "promptDice.full.history";
+
+function describePromptDiceScale(count) {
+  if (count >= 100000000) return (count / 100000000).toFixed(1) + "亿";
+  if (count >= 10000) return (count / 10000).toFixed(1) + "万";
+  return String(count);
+}
+
+function buildRandomFullPrompt() {
+  let storedHistory = [];
+  try {
+    if (typeof localStorage !== "undefined") {
+      storedHistory = JSON.parse(localStorage.getItem(PROMPT_DICE_HISTORY_KEY) || "[]");
+    }
+  } catch (e) {
+    storedHistory = [];
+  }
+  const history = new Set(Array.isArray(storedHistory) ? storedHistory : []);
+  let prompt = "";
+  for (let attempt = 0; attempt < 20; attempt++) {
+    prompt = Object.values(PROMPT_DICE_MODULES)
+      .map(values => values[Math.floor(Math.random() * values.length)])
+      .join("。\n");
+    if (!history.has(prompt)) break;
+  }
+  history.add(prompt);
+  const compactHistory = Array.from(history).slice(-2000);
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(PROMPT_DICE_HISTORY_KEY, JSON.stringify(compactHistory));
+    }
+  } catch (e) {
+    // History persistence is optional; prompt generation still works.
+  }
+  return prompt;
+}
+
+function rollFullPrompt() {
+  const current = ui.prompt.value.trim();
+  if (current && !confirm("完整随机提示词会替换当前 Prompt。确定继续吗？")) {
+    toast("已取消，保留当前 Prompt", "success");
+    return;
+  }
+  ui.prompt.value = buildRandomFullPrompt();
+  ui.prompt.focus();
+  toast("已生成完整随机提示词，组合空间约" + describePromptDiceScale(PROMPT_DICE_COMBINATIONS) + "种", "success");
+}
 
 function rollPromptStyle() {
   const current = ui.prompt.value.trim();
