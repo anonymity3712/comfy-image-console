@@ -856,6 +856,18 @@ def validate_workflow(workflow):
     lora_count = len(_find_node_ids(workflow, {"LoraLoader"}))
     if lora_count > 6:
         errors.append("workflow contains more than 6 LoRA nodes")
+    available_loras = _get_comfy_lora_names(_ACTIVE_COMFY_CLIENT)
+    for node_id in _find_node_ids(workflow, {"LoraLoader"}):
+        name = workflow[node_id].get("inputs", {}).get("lora_name", "")
+        if (
+            name
+            and name not in {"none", "none.safetensors"}
+            and available_loras
+            and name not in available_loras
+        ):
+            errors.append(
+                f"node {node_id}: LoRA is not visible in the selected ComfyUI: {name}"
+            )
     return {"ok": not errors, "errors": errors}
 
 
@@ -1574,6 +1586,9 @@ def make_handler(client: ComfyClient):
             elif path == "/api/models":
                 reg = _load_model_registry()
                 all_loras = _scan_loras()
+                backend_loras = set(_get_comfy_lora_names(client))
+                for l in all_loras:
+                    l["backend_available"] = l["name"] in backend_loras
                 lora_options = [{"name": "none", "display": "（无）", "base_model": "none"}]
                 for l in all_loras:
                     cn = _LORA_CN_NAMES.get(l["name"], {}).get("chinese_short") or _LORA_CN_NAMES.get(l["name"], {}).get("chinese_name") or ""
@@ -1582,6 +1597,8 @@ def make_handler(client: ComfyClient):
                         disp = f"{cn} ({l['name']})"
                     if l.get("size_mb", 0) > 0:
                         disp += f" [{l.get('size_mb', 0):.0f}MB]"
+                    if backend_loras and not l.get("backend_available"):
+                        disp += " [当前ComfyUI不可用]"
                     lora_options.append({
                         "name": l["name"],
                         "display": disp,
@@ -1589,6 +1606,7 @@ def make_handler(client: ComfyClient):
                         "chinese_short": cn,
                         "size_mb": l.get("size_mb", 0),
                         "base_model": l.get("base_model", ""),
+                        "backend_available": l.get("backend_available", False),
                     })
                 models_out = []
                 for m in reg.get("models", []):
@@ -1597,6 +1615,7 @@ def make_handler(client: ComfyClient):
                     "models": models_out,
                     "model_files": _scan_model_files(),
                     "all_loras": all_loras,
+                    "backend_loras": sorted(backend_loras),
                     "settings": _settings(),
                 })
             elif path == "/api/lora-rescan":

@@ -20,6 +20,22 @@ class WorkflowTests(unittest.TestCase):
                 result = app.validate_workflow(workflow)
                 self.assertEqual(result["ok"], True, result["errors"])
 
+    def test_validate_workflow_rejects_lora_missing_from_backend(self):
+        original = app._get_comfy_lora_names
+        app._get_comfy_lora_names = lambda client=None: ["available.safetensors"]
+        try:
+            workflow = {
+                "loader": {
+                    "class_type": "LoraLoader",
+                    "inputs": {"lora_name": "missing.safetensors"},
+                }
+            }
+            result = app.validate_workflow(workflow)
+            self.assertFalse(result["ok"])
+            self.assertTrue(any("missing.safetensors" in error for error in result["errors"]))
+        finally:
+            app._get_comfy_lora_names = original
+
 
 if __name__ == "__main__":
     unittest.main()

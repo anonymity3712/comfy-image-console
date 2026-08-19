@@ -510,7 +510,8 @@ function buildLoraSlot(idx, currentValue) {
   const opts = (currentModelCfg && currentModelCfg.compatible_loras) || [];
   const optsHtml = opts.map(l => {
     const isSel = (l.name === (currentValue && currentValue.name)) ? 'selected' : '';
-    return `<option value="${l.name}" ${isSel}>${l.display}</option>`;
+    const disabled = (l.backend_available === false) ? 'disabled' : '';
+    return `<option value="${l.name}" ${isSel} ${disabled}>${l.display}</option>`;
   }).join('');
   const w = currentValue ? currentValue.weight : 0.5;
   return `
@@ -544,6 +545,11 @@ function renderLoraSlots() {
   if (hint) hint.textContent = "(max " + maxSlots + ")";
   const caption = $("loraSlotCaption");
   if (caption) caption.textContent = "最多 " + maxSlots + " 个";
+  const availableNames = new Set(((currentModelCfg && currentModelCfg.compatible_loras) || [])
+    .filter(l => l.backend_available !== false).map(l => l.name));
+  if (availableNames.size) {
+    loraSlotsState = loraSlotsState.map(slot => availableNames.has(slot.name) ? slot : {name: "none", weight: 0});
+  }
   container.innerHTML = "";
   for (let i = 0; i < loraSlotCount; i++) {
     container.insertAdjacentHTML("beforeend", buildLoraSlot(i, loraSlotsState[i]));
