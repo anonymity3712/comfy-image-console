@@ -32,8 +32,8 @@ class FrontendTests(unittest.TestCase):
             self.assertGreaterEqual(len(options), 4)
             total *= len(options)
             module_count += 1
-        self.assertGreaterEqual(module_count, 10)
-        self.assertGreaterEqual(total, 20000)
+        self.assertGreaterEqual(module_count, 18)
+        self.assertGreaterEqual(total, 1_000_000_000_000)
         self.assertIn("function rollFullPrompt()", html)
 
 
